@@ -27,7 +27,7 @@ async function main() {
   await ensureDemoElection()
 
   const startServer = (port: number) => {
-    httpServer.listen(port, () => {
+    httpServer.listen(port, '0.0.0.0', () => {
       // eslint-disable-next-line no-console
       console.log(`[ChainVote:Core] Backend Manifested on Port ${port}`)
     }).on('error', (err: any) => {
