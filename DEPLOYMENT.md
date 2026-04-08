@@ -24,11 +24,11 @@ This guide covers deploying the full ChainVote full-stack application natively o
      DATABASE_URL=postgresql://user:pass@host:5432/chainvote-db
      DB_PROVIDER=postgresql
      JWT_SECRET=your_super_secret_jwt_key
-     SERVER_SALT=your_random_cryptographic_salt
-     SMTP_HOST=smtp.gmail.com
-     SMTP_USER=your_email@gmail.com
-     SMTP_PASS=your_gmail_app_password
-     FIREBASE_SERVICE_ACCOUNT_PATH=./firebase-service-account.json
+     FRONTEND_URL=https://chainvote-frontend.onrender.com
+     SMTP_HOST=smtp-relay.brevo.com
+     SMTP_PORT=587
+     SMTP_USER=your_verified_email@domain.com
+     SMTP_PASS=your_smtp_password
      ```
    - Click **Create Web Service**. Render will build and deploy the backend. Copy its public URL (e.g., `https://chainvote-backend.onrender.com`).
 

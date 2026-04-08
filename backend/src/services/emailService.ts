@@ -45,21 +45,26 @@ export const emailService = {
   },
 
   async sendEmail(to: string, subject: string, htmlContent: string, context: string): Promise<string | undefined> {
-    const smtpHost = process.env.BREVO_SMTP_HOST
-    const smtpPort = parseInt(process.env.BREVO_SMTP_PORT || '587', 10)
-    const smtpUser = process.env.BREVO_SMTP_USER
-    const smtpPass = process.env.BREVO_SMTP_PASS
-    const senderEmail = process.env.SMTP_USER || "ritual@chainvote.local"
+    // Priority: BREVO_SMTP_* > SMTP_* (backward compatibility for DEPLOYMENT.md)
+    const smtpHost = process.env.BREVO_SMTP_HOST || process.env.SMTP_HOST
+    const smtpPort = parseInt(process.env.BREVO_SMTP_PORT || process.env.SMTP_PORT || '587', 10)
+    const smtpUser = process.env.BREVO_SMTP_USER || process.env.SMTP_USER
+    const smtpPass = process.env.BREVO_SMTP_PASS || process.env.SMTP_PASS
+    
+    // Fallback sender email (must be verified in Brevo if using Brevo)
+    const senderEmail = process.env.SMTP_USER || process.env.BREVO_SMTP_USER || "ritual@chainvote.local"
 
-    // 1. Primary Attempt: Brevo SMTP Relay
+    // 1. Primary Attempt: SMTP Relay (Brevo or Gmail)
     if (smtpHost && smtpUser && smtpPass) {
       try {
-        console.log(`[ChainVote:Email] Attempting Brevo SMTP delivery for ${context}...`)
+        console.log(`[ChainVote:Email] Attempting SMTP delivery via ${smtpHost} for ${context}...`)
         const transporter = nodemailer.createTransport({
           host: smtpHost,
           port: smtpPort,
-          secure: smtpPort === 465, // Use secure for 465, otherwise false for 587
+          secure: smtpPort === 465,
           auth: { user: smtpUser, pass: smtpPass },
+          // Render/Cloud environments sometimes need a timeout
+          connectionTimeout: 10000, 
         })
 
         const info = await transporter.sendMail({
@@ -69,17 +74,18 @@ export const emailService = {
           html: htmlContent,
         })
 
-        console.log(`[ChainVote:Email] Brevo SMTP SUCCESS (${context}). messageId: ${info.messageId}`)
+        console.log(`[ChainVote:Email] SMTP SUCCESS (${context}). messageId: ${info.messageId}`)
         return undefined
       } catch (err: any) {
-        console.error(`[ChainVote:Email] Brevo SMTP FAILED (${context}):`, err?.message || err)
+        console.error(`[ChainVote:Email] SMTP FAILURE (${context}) via ${smtpHost}:`, err?.message || err)
+        console.error(`[ChainVote:Email] Hint: Ensure port ${smtpPort} is open and ${smtpUser} is a verified sender.`)
         // Fall through to Ethereal
       }
     } else {
-      console.log(`[ChainVote:Email] Brevo SMTP credentials missing. Skipping Brevo.`)
+      console.warn(`[ChainVote:Email] SMTP credentials missing (Host: ${!!smtpHost}, User: ${!!smtpUser}, Pass: ${!!smtpPass}). Skipping primary delivery.`)
     }
 
-    // 2. Production Fallback: Ethereal Mail
+    // 2. Production Fallback: Ethereal Mail (Safe for previewing without real SMTP)
     console.log(`[ChainVote:Email] Attempting Ethereal fallback for ${context}...`)
     try {
       const testAccount = await nodemailer.createTestAccount()

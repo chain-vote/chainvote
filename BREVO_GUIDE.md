@@ -30,11 +30,13 @@ Brevo will only send emails from addresses that you have verified.
 - Ensure your account is not "suspended" or "under review".
 
 ## 5. Summary of .env Requirements
-Ensure these variables are correctly set in `c:\Users\admin\chainvote\backend\.env`:
+Ensure these variables are correctly set in your Render environment or local `.env`:
 
 ```env
+SMTP_HOST="smtp-relay.brevo.com"
+SMTP_PORT=587
 SMTP_USER="tanaytrivedi24@gmail.com"  # Must be a Verified Sender in Brevo
-BREVO_API_KEY="xkeysib-..."           # Your V3 API Key
+SMTP_PASS="your_brevo_smtp_password"  # NOT your API key, but the SMTP password from the same tab
 ```
 
 ## How to Test

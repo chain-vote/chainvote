@@ -20,7 +20,35 @@ export const io = new Server(httpServer, {
 
 initSocket(io)
 
+function checkCriticalEnv() {
+  const critical = [
+    'DATABASE_URL',
+    'JWT_SECRET',
+    'FRONTEND_URL'
+  ]
+  const smtp = ['BREVO_SMTP_HOST', 'SMTP_HOST']
+  
+  console.log('[ChainVote:Diagnostics] Running Manifest Verification...')
+  
+  critical.forEach(ext => {
+    if (!process.env[ext]) {
+      console.warn(`[ChainVote:Ritual-Warning] Missing critical component: ${ext}. Some features may remain dormant.`)
+    }
+  })
+
+  const hasSmtp = smtp.some(s => !!process.env[s])
+  if (!hasSmtp) {
+    console.warn('[ChainVote:Ritual-Warning] SMTP Relay not found. OTPs will be spectral (Ethereal only).')
+  }
+
+  if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL?.includes('localhost')) {
+    console.error('[ChainVote:Fatal] PRODUCTION RITUAL ATTEMPTED WITH LOCAL DATABASE. Ritual aborted.')
+    process.exit(1)
+  }
+}
+
 async function main() {
+  checkCriticalEnv()
   await ensureDemoElection()
 
   const startServer = (port: number) => {
