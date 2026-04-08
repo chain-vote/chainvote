@@ -298,6 +298,31 @@ router.post('/system-settings', requireAdmin, async (req, res) => {
   }
 })
 
+// ─── Email Diagnostics (Phase 2 Debugging) ───────────────────────────────────
+router.post('/debug/test-email', requireAdmin, async (req, res) => {
+  try {
+    const { to } = z.object({ to: z.string().email() }).parse(req.body)
+    const { emailService } = await import('../services/emailService')
+    
+    console.log(`[Admin:Debug] Triggering test email to ${to}...`)
+    const result = await emailService.sendEmail(
+      to, 
+      "ChainVote: Diagnostic Ritual", 
+      "<p>If you see this, the SMTP portal is open and the ritual is complete.</p>",
+      "DEBUG_TEST"
+    )
+    
+    res.json({ 
+      success: true, 
+      message: 'Diagnostic spell cast. Check backend logs and target inbox.',
+      previewUrl: result 
+    })
+  } catch (err: any) {
+    console.error(`[Admin:Debug] Spell failed:`, err.message || err)
+    res.status(500).json({ error: `Diagnostic failed: ${err.message || err}` })
+  }
+})
+
 // ─── SQL Workbench / Database Engine ─────────────────────────────────────────
 router.post('/db-engine/execute', requireAdmin, async (req, res) => {
   try {
