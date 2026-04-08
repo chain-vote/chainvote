@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChainVote — World's Most Secure Electronic Voting System</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23060606'/%3E%3Crect x='1' y='1' width='62' height='62' rx='9' fill='none' stroke='%23d4af37' stroke-width='1.5' opacity='0.5'/%3E%3C!-- Chain links --%3E%3Crect x='8' y='18' width='18' height='11' rx='5.5' fill='none' stroke='%23d4af37' stroke-width='2.2'/%3E%3Crect x='38' y='18' width='18' height='11' rx='5.5' fill='none' stroke='%23d4af37' stroke-width='2.2'/%3E%3Cline x1='26' y1='23.5' x2='38' y2='23.5' stroke='%23d4af37' stroke-width='2.2'/%3E%3C!-- Lock body --%3E%3Crect x='20' y='35' width='24' height='17' rx='3.5' fill='none' stroke='%23d4af37' stroke-width='2'/%3E%3Cpath d='M26 35v-4a6 6 0 0112 0v4' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='44' r='3' fill='%23d4af37'/%3E%3Cline x1='32' y1='44' x2='32' y2='49' stroke='%23d4af37' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=JetBrains+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #060606;
+    --void-mid: #0f0f0f;
+    --gold: #d4af37;
+    --gold-bright: #ffb300;
+    --gold-glow: rgba(212, 175, 55, 0.4);
+    --ember: #ff4500;
+    --chaingreen: #00ff66;
+    --ethereal: #4fc3f7;
+    --ash: #888888;
+    --white: #f9fafb;
+    --slide-transition: 0.65s cubic-bezier(0.77, 0, 0.175, 1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: radial-gradient(circle at center, #0f0f0f 0%, #060606 100%);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    cursor: crosshair;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+  .orb { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; animation: orb-drift 20s ease-in-out infinite alternate; }
+  .orb-gold { width: 500px; height: 500px; background: rgba(212,175,55,0.06); top: -10%; left: -10%; animation-delay: 0s; }
+  .orb-ember { width: 350px; height: 350px; background: rgba(255,69,0,0.05); bottom: -5%; right: -5%; animation-delay: -7s; }
+  .orb-green { width: 280px; height: 280px; background: rgba(0,255,102,0.04); bottom: 20%; left: 30%; animation-delay: -14s; }
+  @keyframes orb-drift { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(3%,2%) scale(1.08); } }
+
+  /* ── Slide Engine ── */
+  #slide-container { position: fixed; inset: 0; z-index: 10; display: flex; align-items: stretch; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    /* leave space for nav buttons on sides */
+    padding: 4rem 7rem;
+    opacity: 0; pointer-events: none;
+    transform: translateX(60px);
+    transition: opacity var(--slide-transition), transform var(--slide-transition);
+  }
+  .slide.active { opacity: 1; pointer-events: all; transform: translateX(0); }
+  .slide.exit { opacity: 0; transform: translateX(-60px); pointer-events: none; }
+
+  /* ── Slide number badge — top-right of each slide ── */
+  .slide-num-badge {
+    position: absolute;
+    top: 1.4rem; right: 1.6rem;
+    font-family: 'Cinzel', serif;
+    font-size: 0.62rem; letter-spacing: 0.42em;
+    color: rgba(212,175,55,0.38);
+    text-transform: uppercase; pointer-events: none; z-index: 5;
+    user-select: none;
+  }
+
+  /* ── Typography ── */
+  .cinzel { font-family: 'Cinzel', serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  .label-rune {
+    font-family: 'Cinzel', serif;
+    font-size: 9px; letter-spacing: 0.5em;
+    text-transform: uppercase; color: var(--gold);
+    opacity: 0.7; margin-bottom: 1.2rem;
+  }
+
+  .slide-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2rem, 5vw, 3.8rem);
+    font-weight: 700; line-height: 1.1;
+    color: var(--white);
+    text-shadow: 0 0 60px rgba(212,175,55,0.15);
+    text-align: center; margin-bottom: 1rem;
+  }
+  .slide-title .gold { color: var(--gold); text-shadow: 0 0 30px var(--gold-glow); }
+
+  .slide-tagline {
+    font-size: clamp(0.7rem, 1.5vw, 0.85rem); letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--ash);
+    text-align: center; margin-bottom: 3rem; opacity: 0.7;
+  }
+
+  .divider { width: 120px; height: 1px; background: linear-gradient(to right, transparent, var(--gold), transparent); margin: 1.5rem auto; flex-shrink: 0; }
+
+  /* ── Cards / Panels ── */
+  .glass-card {
+    background: rgba(6,6,6,0.5); backdrop-filter: blur(24px);
+    border: 1px solid rgba(249,250,251,0.08); border-radius: 12px;
+    padding: 2rem 2.2rem;
+    box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(212,175,55,0.03);
+    position: relative; overflow: hidden;
+  }
+  .glass-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(to right, transparent, rgba(212,175,55,0.4), transparent);
+  }
+  .card-grid { display: grid; gap: 1.2rem; width: 100%; max-width: 1000px; }
+  .card-grid-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* ── Feature items ── */
+  .feature-item {
+    display: flex; align-items: flex-start; gap: 1rem;
+    padding: 1.2rem 1.4rem;
+    background: rgba(212,175,55,0.03); border: 1px solid rgba(212,175,55,0.1); border-radius: 8px;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .feature-item:hover { border-color: rgba(212,175,55,0.3); background: rgba(212,175,55,0.06); }
+  .feature-icon { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  .icon-gold { background: rgba(212,175,55,0.12); border: 1px solid rgba(212,175,55,0.25); }
+  .icon-ember { background: rgba(255,69,0,0.12); border: 1px solid rgba(255,69,0,0.25); }
+  .icon-green { background: rgba(0,255,102,0.08); border: 1px solid rgba(0,255,102,0.2); }
+  .icon-cyan { background: rgba(79,195,247,0.08); border: 1px solid rgba(79,195,247,0.2); }
+  .feature-title { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.35rem; }
+  .feature-body { font-size: 0.78rem; color: rgba(249,250,251,0.55); line-height: 1.65; letter-spacing: 0.01em; }
+
+  /* ── Hash chain display ── */
+  .hash-chain { display: flex; align-items: center; gap: 0; width: 100%; overflow: hidden; margin: 1.5rem 0; }
+  .hash-block { flex: 1; padding: 0.8rem 1rem; background: rgba(6,6,6,0.7); border: 1px solid rgba(212,175,55,0.15); border-radius: 6px; text-align: center; min-width: 0; }
+  .hash-block .label { font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ash); margin-bottom: 0.4rem; }
+  .hash-block .value { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--gold); word-break: break-all; }
+  .hash-arrow { flex-shrink: 0; padding: 0 0.5rem; color: rgba(212,175,55,0.4); font-size: 1rem; }
+
+  /* ── Stat cards ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; width: 100%; max-width: 900px; }
+  .stat-card { padding: 1.5rem 1rem; background: rgba(6,6,6,0.5); border: 1px solid rgba(249,250,251,0.07); border-top: 2px solid var(--gold); border-radius: 8px; text-align: center; box-shadow: 0 0 20px rgba(212,175,55,0.04); }
+  .stat-value { font-family: 'Cinzel', serif; font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700; color: var(--gold); text-shadow: 0 0 20px var(--gold-glow); margin-bottom: 0.4rem; }
+  .stat-label { font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ash); }
+
+  /* ── Tech stack pills ── */
+  .tech-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; max-width: 780px; }
+  .tech-pill { padding: 0.5rem 1.1rem; border-radius: 4px; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; transition: all 0.25s; }
+  .pill-gold { border: 1px solid rgba(212,175,55,0.3); color: var(--gold); background: rgba(212,175,55,0.06); }
+  .pill-ember { border: 1px solid rgba(255,69,0,0.3); color: var(--ember); background: rgba(255,69,0,0.06); }
+  .pill-green { border: 1px solid rgba(0,255,102,0.25); color: #00ff66; background: rgba(0,255,102,0.04); }
+  .pill-cyan { border: 1px solid rgba(79,195,247,0.25); color: var(--ethereal); background: rgba(79,195,247,0.04); }
+  .pill-white { border: 1px solid rgba(249,250,251,0.15); color: rgba(249,250,251,0.7); background: rgba(249,250,251,0.04); }
+  .tech-pill:hover { transform: translateY(-2px); filter: brightness(1.3); }
+
+  /* ── Comparison table ── */
+  .compare-table { width: 100%; max-width: 900px; border-collapse: collapse; }
+  .compare-table th { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); padding: 0.9rem 1.2rem; border-bottom: 1px solid rgba(212,175,55,0.2); text-align: left; }
+  .compare-table td { padding: 0.75rem 1.2rem; font-size: 0.78rem; color: rgba(249,250,251,0.65); border-bottom: 1px solid rgba(249,250,251,0.05); transition: background 0.2s; }
+  .compare-table tr:hover td { background: rgba(212,175,55,0.03); }
+  .compare-table tr.chain-row td { color: var(--white); font-weight: 500; }
+  .compare-table tr.chain-row td:first-child { color: var(--gold); font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.1em; }
+  .check { color: var(--chaingreen); } .cross { color: rgba(255,69,0,0.6); } .partial { color: rgba(212,175,55,0.6); }
+
+  /* ── Threat row ── */
+  .threat-row { display: flex; align-items: center; gap: 1rem; padding: 0.9rem 1.2rem; border: 1px solid rgba(249,250,251,0.06); border-radius: 6px; margin-bottom: 0.6rem; background: rgba(6,6,6,0.4); transition: border-color 0.3s; }
+  .threat-row:hover { border-color: rgba(255,69,0,0.2); }
+  .threat-badge { flex-shrink: 0; font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.2em; padding: 0.25rem 0.7rem; border-radius: 3px; text-transform: uppercase; border: 1px solid rgba(255,69,0,0.35); color: var(--ember); background: rgba(255,69,0,0.08); }
+  .threat-name { font-size: 0.8rem; font-weight: 500; color: var(--white); flex: 1; }
+  .threat-defense { font-size: 0.7rem; color: var(--chaingreen); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; }
+
+  /* ── CTA button ── */
+  .cta-btn { display: inline-flex; align-items: center; gap: 0.75rem; padding: 1rem 2.5rem; font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.4em; text-transform: uppercase; text-decoration: none; color: var(--void); background: var(--gold); border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 0 30px rgba(212,175,55,0.3); transition: all 0.35s; position: relative; overflow: hidden; }
+  .cta-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%); transform: translateX(-100%); transition: transform 0.6s; }
+  .cta-btn:hover { box-shadow: 0 0 50px rgba(212,175,55,0.6); transform: translateY(-2px); }
+  .cta-btn:hover::before { transform: translateX(100%); }
+
+  /* ── SIDE NAV — extreme left / right edges ── */
+  .side-nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    z-index: 100;
+    width: 48px; height: 72px;
+    background: rgba(6,6,6,0.55); backdrop-filter: blur(16px);
+    border: 1px solid rgba(212,175,55,0.18);
+    color: var(--gold);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.28s; font-size: 1.5rem; line-height: 1;
+    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+  }
+  #prev-btn { left: 0; border-left: none; border-radius: 0 8px 8px 0; }
+  #next-btn { right: 0; border-right: none; border-radius: 8px 0 0 8px; }
+  .side-nav-btn:hover { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.45); box-shadow: 0 0 22px rgba(212,175,55,0.2); }
+  .side-nav-btn:disabled { opacity: 0.12; cursor: not-allowed; }
+
+  /* ── Hamburger ── */
+  #hamburger { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 200; width: 40px; height: 40px; background: rgba(6,6,6,0.6); backdrop-filter: blur(16px); border: 1px solid rgba(212,175,55,0.2); border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: all 0.25s; }
+  #hamburger:hover { border-color: rgba(212,175,55,0.5); box-shadow: 0 0 15px rgba(212,175,55,0.1); }
+  .ham-line { width: 18px; height: 1.5px; background: var(--gold); border-radius: 2px; transition: all 0.3s; }
+  #hamburger.open .ham-line:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+  #hamburger.open .ham-line:nth-child(2) { opacity: 0; }
+  #hamburger.open .ham-line:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+  /* ── Menu panel ── */
+  #menu-panel { position: fixed; top: 0; right: -320px; width: 300px; height: 100%; z-index: 150; background: rgba(6,6,6,0.92); backdrop-filter: blur(30px); border-left: 1px solid rgba(212,175,55,0.12); padding: 5rem 2rem 3rem; transition: right 0.4s cubic-bezier(0.77,0,0.175,1); display: flex; flex-direction: column; }
+  #menu-panel.open { right: 0; }
+  .menu-title { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold); margin-bottom: 1.5rem; opacity: 0.7; }
+  .menu-item { display: flex; align-items: center; gap: 0.9rem; padding: 0.8rem 0; border-bottom: 1px solid rgba(249,250,251,0.05); cursor: pointer; transition: all 0.2s; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; }
+  .menu-item:hover { padding-left: 0.5rem; }
+  .menu-item:hover .menu-item-title { color: var(--gold); }
+  .menu-num { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: rgba(212,175,55,0.35); min-width: 24px; }
+  .menu-item-title { font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(249,250,251,0.55); transition: color 0.2s; }
+  .menu-item.current .menu-item-title { color: var(--gold); }
+  .menu-item.current .menu-num { color: var(--gold); }
+
+  /* ── Logo ── */
+  #logo { position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100; display: flex; align-items: center; gap: 0.6rem; }
+  .logo-text { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.25em; color: var(--gold); text-transform: uppercase; }
+
+  /* ── Anims ── */
+  @keyframes float-in-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  .slide.active .animate-in { animation: float-in-up 0.6s ease forwards; }
+  .slide.active .animate-in:nth-child(2) { animation-delay: 0.1s; opacity: 0; }
+  .slide.active .animate-in:nth-child(3) { animation-delay: 0.2s; opacity: 0; }
+  .slide.active .animate-in:nth-child(4) { animation-delay: 0.3s; opacity: 0; }
+  .slide.active .animate-in:nth-child(5) { animation-delay: 0.4s; opacity: 0; }
+  .slide.active .animate-in:nth-child(6) { animation-delay: 0.5s; opacity: 0; }
+
+  .slide-body-text { font-size: clamp(0.78rem, 1.5vw, 0.9rem); color: rgba(249,250,251,0.55); line-height: 1.8; text-align: center; max-width: 680px; letter-spacing: 0.02em; }
+
+  .eq-box { padding: 1rem 2rem; margin: 1rem 0; background: rgba(0,0,0,0.6); border: 1px solid rgba(212,175,55,0.15); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--gold); text-align: center; letter-spacing: 0.05em; }
+
+  .roadmap-row { display: flex; align-items: center; gap: 1.2rem; padding: 0.8rem 1.2rem; border-radius: 6px; margin-bottom: 0.5rem; background: rgba(6,6,6,0.4); border: 1px solid rgba(249,250,251,0.06); transition: all 0.3s; }
+  .roadmap-row:hover { border-color: rgba(212,175,55,0.2); background: rgba(212,175,55,0.03); }
+  .phase-dot { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 0.6rem; font-weight: 700; }
+  .phase-active { background: rgba(212,175,55,0.2); border: 1px solid var(--gold); color: var(--gold); box-shadow: 0 0 12px rgba(212,175,55,0.3); }
+  .phase-future { background: rgba(249,250,251,0.04); border: 1px solid rgba(249,250,251,0.1); color: var(--ash); }
+
+  /* ── ER Diagram slide styles ── */
+  .er-container { width: 100%; max-width: 1020px; position: relative; }
+  .er-svg { width: 100%; height: auto; }
+
+  /* ── Dots nav removed — no progress bar ── */
+
+  @media (max-width: 800px) {
+    .slide { padding: 4rem 4rem; }
+    .card-grid-3 { grid-template-columns: 1fr 1fr; }
+    .stat-grid { grid-template-columns: repeat(2,1fr); }
+    .compare-table td, .compare-table th { padding: 0.6rem 0.7rem; font-size: 0.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="orb orb-gold"></div>
+<div class="orb orb-ember"></div>
+<div class="orb orb-green"></div>
+
+<!-- Logo (SVG drawn inline) -->
+<div id="logo">
+  <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="34" height="34" rx="7" fill="#060606"/>
+    <rect x="0.75" y="0.75" width="32.5" height="32.5" rx="6.25" stroke="#d4af37" stroke-width="1" opacity="0.4"/>
+    <!-- chain link left -->
+    <rect x="3" y="8" width="10" height="7" rx="3.5" fill="none" stroke="#d4af37" stroke-width="1.5"/>
+    <!-- chain link right -->
+    <rect x="21" y="8" width="10" height="7" rx="3.5" fill="none" stroke="#d4af37" stroke-width="1.5"/>
+    <!-- connector -->
+    <line x1="13" y1="11.5" x2="21" y2="11.5" stroke="#d4af37" stroke-width="1.5"/>
+    <!-- lock body -->
+    <rect x="11" y="19" width="12" height="9" rx="2" fill="none" stroke="#d4af37" stroke-width="1.4"/>
+    <!-- shackle -->
+    <path d="M14 19v-2.5a3 3 0 016 0V19" stroke="#d4af37" stroke-width="1.4" stroke-linecap="round"/>
+    <!-- keyhole -->
+    <circle cx="17" cy="23.5" r="1.5" fill="#d4af37"/>
+    <line x1="17" y1="23.5" x2="17" y2="26" stroke="#d4af37" stroke-width="1.3" stroke-linecap="round"/>
+  </svg>
+  <span class="logo-text">ChainVote</span>
+</div>
+
+<!-- Hamburger -->
+<button id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+  <div class="ham-line"></div>
+  <div class="ham-line"></div>
+  <div class="ham-line"></div>
+</button>
+
+<!-- Menu Panel -->
+<div id="menu-panel">
+  <div class="menu-title">Slides</div>
+</div>
+
+<!-- Side Nav -->
+<button class="side-nav-btn" id="prev-btn" onclick="changeSlide(-1)" aria-label="Previous">‹</button>
+<button class="side-nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next">›</button>
+
+<!-- ══════════════════════ SLIDES ══════════════════════ -->
+<div id="slide-container">
+
+  <!-- SLIDE 1 -->
+  <section class="slide active" data-index="0" data-title="Introduction">
+    <div class="slide-num-badge">01</div>
+    <div class="label-rune animate-in">NMIMS Indore · DBMS Project · 2025–26</div>
+    <h1 class="slide-title animate-in">Chain<span class="gold">Vote</span></h1>
+    <p class="slide-tagline animate-in">World's Most Secure Electronic Voting System</p>
+    <div class="divider animate-in"></div>
+    <p class="slide-body-text animate-in">
+      An ultra-high integrity, anonymized, and immutable voting protocol for the post-trust era — combining cryptographic hash-chaining, ring anonymity, and real-time auditability within a relational database.
+    </p>
+    <div style="margin-top:2.5rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;" class="animate-in">
+      <div style="padding:0.5rem 1.2rem;border:1px solid rgba(212,175,55,0.2);border-radius:4px;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--ash);">Srishti Jain</div>
+      <div style="padding:0.5rem 1.2rem;border:1px solid rgba(212,175,55,0.2);border-radius:4px;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--ash);">Diksha Rathi</div>
+      <div style="padding:0.5rem 1.2rem;border:1px solid rgba(212,175,55,0.2);border-radius:4px;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--ash);">Tanay Trivedi</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 2 -->
+  <section class="slide" data-index="1" data-title="The Problem">
+    <div class="slide-num-badge">02</div>
+    <div class="label-rune animate-in">The Electronic Voting Paradox</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);">Why Existing Systems <span class="gold">Fail</span></h2>
+    <div class="divider animate-in"></div>
+    <div class="card-grid card-grid-2 animate-in" style="max-width:860px;margin-top:1rem;">
+      <div class="glass-card">
+        <div class="feature-title" style="color:var(--ember);margin-bottom:0.8rem;">⚡ Centralized SQL</div>
+        <div class="feature-body">A single <code style="color:var(--gold);font-family:monospace;font-size:0.8em;">UPDATE</code> query by a rogue DBA can silently alter election outcomes. Server logs are trivially purged. Zero cryptographic protection.</div>
+      </div>
+      <div class="glass-card">
+        <div class="feature-title" style="color:var(--ember);margin-bottom:0.8rem;">💸 Public Blockchains</div>
+        <div class="feature-body">Ethereum tops out at ~15 TPS. Gas fees spike to $50+ per vote. Metadata leakage via transaction graphs de-anonymizes voters through forensic analysis.</div>
+      </div>
+      <div class="glass-card">
+        <div class="feature-title" style="color:var(--ember);margin-bottom:0.8rem;">🔒 Hardware E-Voting</div>
+        <div class="feature-body">Impenetrable remotely but vulnerable to supply-chain attacks, pre-loaded malicious firmware, and Rowhammer memory exploits. Audits require physical access across geographies.</div>
+      </div>
+      <div class="glass-card">
+        <div class="feature-title" style="color:var(--ember);margin-bottom:0.8rem;">📜 Paper Ballots</div>
+        <div class="feature-body">Susceptible to ballot stuffing, missing ballot boxes, and local coercion. Manual recounts take weeks and are plagued by human error. Non-cryptographic by nature.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 3 -->
+  <section class="slide" data-index="2" data-title="Our Solution">
+    <div class="slide-num-badge">03</div>
+    <div class="label-rune animate-in">ChainVote's Core Innovation</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);">The <span class="gold">Manifestation</span> Protocol</h2>
+    <div class="divider animate-in"></div>
+    <div style="width:100%;max-width:900px;" class="animate-in">
+      <div class="eq-box" style="margin-bottom:1.2rem;">
+        H<sub style="font-size:0.65em">i</sub> = SHA-256( H<sub style="font-size:0.65em">i-1</sub> ‖ Vote<sub style="font-size:0.65em">i</sub> ‖ Timestamp<sub style="font-size:0.65em">i</sub> ‖ Commitment ‖ RingID )
+      </div>
+      <div class="hash-chain">
+        <div class="hash-block"><div class="label">Genesis</div><div class="value">ø → a3f8...c1d2</div></div>
+        <div class="hash-arrow">→</div>
+        <div class="hash-block"><div class="label">Vote #1</div><div class="value">a3f8 → 7bc2...e409</div></div>
+        <div class="hash-arrow">→</div>
+        <div class="hash-block"><div class="label">Vote #2</div><div class="value">7bc2 → f912...8ab1</div></div>
+        <div class="hash-arrow">→</div>
+        <div class="hash-block" style="border-color:rgba(212,175,55,0.4);box-shadow:0 0 12px rgba(212,175,55,0.1);">
+          <div class="label" style="color:var(--gold);">Vote #N</div><div class="value">... → Merkle Root</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-grid card-grid-3 animate-in" style="max-width:900px;margin-top:0.5rem;">
+      <div class="feature-item">
+        <div class="feature-icon icon-gold">🔐</div>
+        <div><div class="feature-title">Structural Immutability</div><div class="feature-body">Altering any vote invalidates all subsequent hashes — a computational race no single machine can win.</div></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon icon-green">👁</div>
+        <div><div class="feature-title">Ring Anonymity</div><div class="feature-body">Votes within a 5-minute window share a RingID, reducing identification probability to 1/k.</div></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon icon-cyan">⚡</div>
+        <div><div class="feature-title">Zero Gas Cost</div><div class="feature-body">Hash-chaining inside PostgreSQL eliminates all blockchain transaction fees entirely.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 4 -->
+  <section class="slide" data-index="3" data-title="30 Core Features">
+    <div class="slide-num-badge">04</div>
+    <div class="label-rune animate-in">Feature Architecture</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.5rem,3.5vw,2.5rem);">30 Cryptographic <span class="gold">Features</span></h2>
+    <div class="divider animate-in"></div>
+    <div class="card-grid card-grid-2 animate-in" style="max-width:900px;margin-top:0.5rem;">
+      <div class="feature-item">
+        <div class="feature-icon icon-gold">🗳</div>
+        <div><div class="feature-title">Dual Voting Modes</div><div class="feature-body">First-Past-The-Post and full Instant-Runoff Voting with ranked preference matrix. IRV tally complexity: O(k² log n).</div></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon icon-ember">🔱</div>
+        <div><div class="feature-title">Admin Meta-Chain</div><div class="feature-body">Every administrative mutation is hash-chained independently — making covert electoral rigging cryptographically detectable.</div></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon icon-green">🛡</div>
+        <div><div class="feature-title">Commitment Scheme</div><div class="feature-body">Votes stored as H(Candidate ‖ Nonce) encrypted with AES-256-GCM. Unsealed only after election close.</div></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon icon-cyan">🌐</div>
+        <div><div class="feature-title">Live WebSocket Telemetry</div><div class="feature-body">Real-time vote velocity, chain-growth events, and Merkle snapshots broadcast to all connected auditors per second.</div></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon icon-gold">🧬</div>
+        <div><div class="feature-title">Voter Passport & Sigils</div><div class="feature-body">Cross-election participation ledger generating unique algorithmic SVG sigil identities. Gamified civic engagement.</div></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon icon-ember">⚖</div>
+        <div><div class="feature-title">Proportional Delegation</div><div class="feature-body">Cryptographically signed delegation with weight multiplier ω = 1 + d. Fully revocable with audit trail logging.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 -->
+  <section class="slide" data-index="4" data-title="Tech Stack">
+    <div class="slide-num-badge">05</div>
+    <div class="label-rune animate-in">Full-Stack Architecture</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);">Technology <span class="gold">Stack</span></h2>
+    <div class="divider animate-in"></div>
+    <div style="width:100%;max-width:880px;display:flex;flex-direction:column;gap:1.5rem;" class="animate-in">
+      <div class="glass-card" style="padding:1.4rem 1.8rem;">
+        <div style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.35em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;opacity:0.8;">Frontend · The Manifestation Layer</div>
+        <div class="tech-grid" style="justify-content:flex-start;">
+          <span class="tech-pill pill-gold">React 18</span><span class="tech-pill pill-white">Vite</span><span class="tech-pill pill-cyan">TypeScript</span><span class="tech-pill pill-green">Three.js</span><span class="tech-pill pill-white">TailwindCSS</span><span class="tech-pill pill-white">Zustand</span><span class="tech-pill pill-cyan">Framer Motion</span><span class="tech-pill pill-white">Web Crypto API</span>
+        </div>
+      </div>
+      <div class="glass-card" style="padding:1.4rem 1.8rem;">
+        <div style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.35em;text-transform:uppercase;color:var(--ember);margin-bottom:1rem;opacity:0.8;">Backend · The Orchestrator of Truth</div>
+        <div class="tech-grid" style="justify-content:flex-start;">
+          <span class="tech-pill pill-ember">Node.js 22</span><span class="tech-pill pill-white">Express.js</span><span class="tech-pill pill-cyan">Socket.io</span><span class="tech-pill pill-white">JWT + MFA</span><span class="tech-pill pill-white">Brevo SMTP</span><span class="tech-pill pill-white">Joi Validation</span>
+        </div>
+      </div>
+      <div class="glass-card" style="padding:1.4rem 1.8rem;">
+        <div style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.35em;text-transform:uppercase;color:var(--chaingreen);margin-bottom:1rem;opacity:0.8;">Persistence · The Ledger of Rituals</div>
+        <div class="tech-grid" style="justify-content:flex-start;">
+          <span class="tech-pill pill-green">PostgreSQL 16</span><span class="tech-pill pill-green">Prisma ORM</span><span class="tech-pill pill-white">SQLite (dev)</span><span class="tech-pill pill-gold">SHA-256</span><span class="tech-pill pill-gold">AES-256-GCM</span><span class="tech-pill pill-gold">Bcrypt R10</span><span class="tech-pill pill-white">Docker / K8s</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 -->
+  <section class="slide" data-index="5" data-title="Cryptography">
+    <div class="slide-num-badge">06</div>
+    <div class="label-rune animate-in">Formal Security Model</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);">Cryptographic <span class="gold">Foundations</span></h2>
+    <div class="divider animate-in"></div>
+    <div style="width:100%;max-width:900px;" class="animate-in">
+      <div class="card-grid card-grid-2" style="margin-bottom:1rem;">
+        <div class="glass-card">
+          <div style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);margin-bottom:0.8rem;">Theorem 1 · Chain Immutability</div>
+          <div style="font-size:0.78rem;color:rgba(249,250,251,0.6);line-height:1.7;">Any modification to vote V<sub>j</sub> requires recomputing H<sub>j</sub>…H<sub>n</sub> against an actively growing chain — requiring O(2<sup>128</sup>) operations under SHA-256.</div>
+          <div class="eq-box" style="margin-top:0.8rem;font-size:0.7rem;">Pr[collision] ≤ 2<sup>−128</sup></div>
+        </div>
+        <div class="glass-card">
+          <div style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);margin-bottom:0.8rem;">Theorem 2 · Voter Anonymity</div>
+          <div style="font-size:0.78rem;color:rgba(249,250,251,0.6);line-height:1.7;">No PPT adversary can identify a voter's ballot within ring S<sub>w</sub> of size m with probability better than 1/m + negl(λ).</div>
+          <div class="eq-box" style="margin-top:0.8rem;font-size:0.7rem;">RingID<sub>w</sub> = H(ElectionID ‖ ⌊T/W⌋)</div>
+        </div>
+      </div>
+      <div class="glass-card" style="display:flex;gap:3rem;align-items:center;flex-wrap:wrap;">
+        <div><div style="font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-bottom:0.5rem;">Security Parameter</div><div style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;color:var(--gold);text-shadow:0 0 20px var(--gold-glow);">λ = 128-bit</div></div>
+        <div><div style="font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-bottom:0.5rem;">Commitment Scheme</div><div style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--gold);">C = H(Cₖ ‖ Nᵣ)</div></div>
+        <div><div style="font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-bottom:0.5rem;">Adversary Model</div><div style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--gold);">Dolev-Yao</div></div>
+        <div><div style="font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-bottom:0.5rem;">Nonce Entropy</div><div style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--gold);">256-bit CSPRNG</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 7 -->
+  <section class="slide" data-index="6" data-title="Threat Model">
+    <div class="slide-num-badge">07</div>
+    <div class="label-rune animate-in">Adversary Space 𝒜 = {A, B, C, D}</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);"><span class="gold">Threat</span> Model</h2>
+    <div class="divider animate-in"></div>
+    <div style="width:100%;max-width:860px;" class="animate-in">
+      <div class="threat-row"><div class="threat-badge">𝒜</div><div class="threat-name">Malicious DBA — Direct SQL mutation of vote records</div><div class="threat-defense">→ Hash-chain cascade invalidation</div></div>
+      <div class="threat-row"><div class="threat-badge">ℬ</div><div class="threat-name">Sybil Botnet — Forged voter identity flood attack</div><div class="threat-defense">→ MFA + UNIQUE(voterHash, electionId)</div></div>
+      <div class="threat-row"><div class="threat-badge">𝒞</div><div class="threat-name">Network Eavesdropper — Timing / packet correlation</div><div class="threat-defense">→ Ring W-second anonymity window</div></div>
+      <div class="threat-row"><div class="threat-badge">𝒟</div><div class="threat-name">Physical Coercer — Forced vote under threat</div><div class="threat-defense">→ Panic Code → dummy ballot issued</div></div>
+      <div class="threat-row" style="border-color:rgba(79,195,247,0.15);">
+        <div class="threat-badge" style="border-color:rgba(79,195,247,0.35);color:var(--ethereal);background:rgba(79,195,247,0.08);">∞</div>
+        <div class="threat-name">Admin Config Tampering — Election rule modification</div>
+        <div class="threat-defense">→ Administrative Meta-Chain audit</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 8 -->
+  <section class="slide" data-index="7" data-title="Performance">
+    <div class="slide-num-badge">08</div>
+    <div class="label-rune animate-in">Apache JMeter Load Tests · Dockerized Isolation</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);"><span class="gold">Performance</span> Benchmarks</h2>
+    <div class="divider animate-in"></div>
+    <div class="stat-grid animate-in">
+      <div class="stat-card"><div class="stat-value">450</div><div class="stat-label">TPS Sustained</div></div>
+      <div class="stat-card" style="border-top-color:var(--chaingreen);"><div class="stat-value" style="color:var(--chaingreen);text-shadow:0 0 20px rgba(0,255,102,0.3);">&lt;150ms</div><div class="stat-label">P95 Latency</div></div>
+      <div class="stat-card" style="border-top-color:var(--ember);"><div class="stat-value" style="color:var(--ember);text-shadow:0 0 20px rgba(255,69,0,0.3);">0.48%</div><div class="stat-label">Fork Rate</div></div>
+      <div class="stat-card"><div class="stat-value">100K</div><div class="stat-label">Voters Tested</div></div>
+    </div>
+    <div style="width:100%;max-width:900px;margin-top:1.5rem;" class="animate-in">
+      <table class="compare-table" style="background:rgba(6,6,6,0.4);border-radius:8px;overflow:hidden;">
+        <thead>
+          <tr><th>Protocol</th><th>Max TPS</th><th>Cost/TX</th><th>Finality</th><th>Anonymity</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Ethereum (L1)</td><td>~15</td><td>$2.50–50</td><td>12s</td><td class="partial">Partial</td></tr>
+          <tr><td>Solana (L1)</td><td>~3,000</td><td>$0.0003</td><td>0.4s</td><td class="cross">Low</td></tr>
+          <tr><td>Hyperledger</td><td>~1,000</td><td>$0.00</td><td>1s</td><td class="check">High</td></tr>
+          <tr><td>Traditional SQL</td><td>5,000+</td><td>$0.00</td><td>0.01s</td><td class="cross">None</td></tr>
+          <tr class="chain-row" style="background:rgba(212,175,55,0.04);">
+            <td style="font-weight:600;">ChainVote ✦</td>
+            <td><span style="color:var(--chaingreen);">450 (scalable)</span></td>
+            <td><span style="color:var(--chaingreen);">$0.00</span></td>
+            <td><span style="color:var(--chaingreen);">0.15s</span></td>
+            <td class="check">Full</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SLIDE 9 -->
+  <section class="slide" data-index="8" data-title="Database Schema">
+    <div class="slide-num-badge">09</div>
+    <div class="label-rune animate-in">Prisma ORM · PostgreSQL / SQLite</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.5rem,3.5vw,2.4rem);">Database <span class="gold">Schema</span> Design</h2>
+    <div class="divider animate-in"></div>
+    <div class="card-grid card-grid-3 animate-in" style="max-width:1000px;margin-top:0.5rem;">
+      <div class="glass-card" style="padding:1.2rem 1.4rem;">
+        <div class="feature-title" style="margin-bottom:0.6rem;">Vote · Ledger Core</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:rgba(249,250,251,0.5);line-height:1.8;">id: uuid PK<br><span style="color:var(--gold);">voteHash: sha256</span><br><span style="color:var(--gold);">prevHash: sha256</span><br>commitment: H(choice‖nonce)<br><span style="color:var(--chaingreen);">ringId: temporal bucket</span><br>revealNonce: AES-256-GCM<br><span style="color:var(--ember);">@@unique[voterHash, electionId]</span></div>
+      </div>
+      <div class="glass-card" style="padding:1.2rem 1.4rem;">
+        <div class="feature-title" style="margin-bottom:0.6rem;">AuditChainLog · Meta-Chain</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:rgba(249,250,251,0.5);line-height:1.8;">id: uuid PK<br>operation: string<br>actorId: adminRef<br>payload: JSON diff<br><span style="color:var(--gold);">hash: SHA256 chain link</span><br><span style="color:var(--gold);">prevHash: pointer</span><br>timestamp: datetime</div>
+      </div>
+      <div class="glass-card" style="padding:1.2rem 1.4rem;">
+        <div class="feature-title" style="margin-bottom:0.6rem;">VoterPassport · Identity</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:rgba(249,250,251,0.5);line-height:1.8;">id: uuid PK<br><span style="color:var(--chaingreen);">voterHash: unique</span><br>participationCnt: int<br>sigilLevel: int<br>createdAt: datetime<br><br><span style="color:var(--ash);">// Cross-election identity</span><br><span style="color:var(--ash);">// No vote linkage</span></div>
+      </div>
+      <div class="glass-card" style="padding:1.2rem 1.4rem;">
+        <div class="feature-title" style="margin-bottom:0.6rem;">Election · Rule Engine</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:rgba(249,250,251,0.5);line-height:1.8;">id: uuid PK<br>title, status<br><span style="color:var(--gold);">merkleRoot: H(all votes)</span><br>masterKey: AES key<br><span style="color:var(--ember);">status: DRAFT|LIVE|RECALLED</span></div>
+      </div>
+      <div class="glass-card" style="padding:1.2rem 1.4rem;">
+        <div class="feature-title" style="margin-bottom:0.6rem;">ChainForkLog · Collision</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:rgba(249,250,251,0.5);line-height:1.8;">id: uuid PK<br><span style="color:var(--ember);">prevHash: collided ref</span><br>timestamp: datetime<br><br><span style="color:var(--ash);">// Jittered backoff</span><br><span style="color:var(--ash);">// ~10–50ms * 2^attempt</span></div>
+      </div>
+      <div class="glass-card" style="padding:1.2rem 1.4rem;">
+        <div class="feature-title" style="margin-bottom:0.6rem;">MerkleSnapshot · Audit</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:rgba(249,250,251,0.5);line-height:1.8;">id: uuid PK<br><span style="color:var(--gold);">merkleRoot: periodic hash</span><br>voteCount: int<br>electionId: FK<br><br><span style="color:var(--ash);">// Every N* votes</span><br><span style="color:var(--ash);">// O(log N) audit speed</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 10 -->
+  <section class="slide" data-index="9" data-title="Normalization">
+    <div class="slide-num-badge">10</div>
+    <div class="label-rune animate-in">Database Design Theory</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);">Normalization & <span class="gold">ER Design</span></h2>
+    <div class="divider animate-in"></div>
+    <div style="width:100%;max-width:900px;display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;" class="animate-in">
+      <div style="display:flex;flex-direction:column;gap:0.8rem;">
+        <div class="glass-card" style="padding:1.2rem 1.5rem;"><div class="feature-title" style="color:var(--chaingreen);margin-bottom:0.5rem;">1NF ✓</div><div class="feature-body">All attributes are atomic. No multi-valued columns. Each row represents a single tuple with a unique UUID primary key.</div></div>
+        <div class="glass-card" style="padding:1.2rem 1.5rem;"><div class="feature-title" style="color:var(--chaingreen);margin-bottom:0.5rem;">2NF ✓</div><div class="feature-body">Single-attribute PKs eliminate partial dependencies entirely. All non-prime attributes are fully functionally dependent on PK.</div></div>
+        <div class="glass-card" style="padding:1.2rem 1.5rem;"><div class="feature-title" style="color:var(--chaingreen);margin-bottom:0.5rem;">3NF + BCNF ✓</div><div class="feature-body">No transitive dependencies. For every FD X→Y, X is a superkey. Party depends only on Candidate(id), not on name.</div></div>
+      </div>
+      <div class="glass-card" style="padding:1.5rem;">
+        <div class="feature-title" style="margin-bottom:1rem;">Relational Schema</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;line-height:2;color:rgba(249,250,251,0.6);">
+          <span style="color:var(--gold);">Users</span>(<u>id</u>, name, email, voterHash)<br>
+          <span style="color:var(--gold);">Election</span>(<u>id</u>, title, status, merkleRoot)<br>
+          <span style="color:var(--gold);">Candidate</span>(<u>id</u>, name, party, <i>electionId</i>)<br>
+          &nbsp;&nbsp;&nbsp;<span style="color:var(--ash);">FK: electionId → Election(id)</span><br>
+          <span style="color:var(--gold);">Vote</span>(<u>id</u>, voterHash, <i>electionId</i>, <i>candidateId</i>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;voteHash, prevHash, timestamp)<br>
+          &nbsp;&nbsp;&nbsp;<span style="color:var(--ash);">FK: electionId → Election(id)</span><br>
+          &nbsp;&nbsp;&nbsp;<span style="color:var(--ash);">FK: candidateId → Candidate(id)</span><br>
+          &nbsp;&nbsp;&nbsp;<span style="color:var(--ember);">UNIQUE(voterHash, electionId)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 11 — ER DIAGRAM -->
+  <section class="slide" data-index="10" data-title="ER Diagram">
+    <div class="slide-num-badge">11</div>
+    <div class="label-rune animate-in">Entity-Relationship Diagram</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.4rem,3.5vw,2.3rem);">ChainVote <span class="gold">ER Diagram</span></h2>
+    <div class="divider animate-in"></div>
+    <div class="er-container animate-in">
+      <svg class="er-svg" viewBox="0 0 1020 480" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono', monospace">
+        <defs>
+          <filter id="glow-gold">
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="rgba(212,175,55,0.5)"/>
+          </marker>
+          <marker id="arr-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="rgba(0,255,102,0.5)"/>
+          </marker>
+          <marker id="arr-cyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="rgba(79,195,247,0.45)"/>
+          </marker>
+          <marker id="arr-ember" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="rgba(255,69,0,0.5)"/>
+          </marker>
+        </defs>
+
+        <!-- ───── ENTITIES ───── -->
+
+        <!-- Users -->
+        <g transform="translate(30,30)">
+          <rect width="160" height="170" rx="6" fill="rgba(6,6,6,0.82)" stroke="#d4af37" stroke-width="1.4" filter="url(#glow-gold)"/>
+          <rect width="160" height="28" rx="6" fill="rgba(212,175,55,0.18)" stroke="#d4af37" stroke-width="1.4"/>
+          <rect x="0" y="6" width="160" height="22" fill="rgba(212,175,55,0.18)"/>
+          <text x="80" y="19" text-anchor="middle" font-family="'Cinzel',serif" font-size="10" fill="#d4af37" font-weight="700" letter-spacing="1">USERS</text>
+          <!-- PK line -->
+          <line x1="0" y1="28" x2="160" y2="28" stroke="rgba(212,175,55,0.35)" stroke-width="0.8"/>
+          <text x="10" y="46" font-size="9" fill="#d4af37">🔑 id</text>
+          <text x="10" y="62" font-size="9" fill="rgba(249,250,251,0.55)">   name</text>
+          <text x="10" y="78" font-size="9" fill="rgba(249,250,251,0.55)">   email</text>
+          <line x1="0" y1="88" x2="160" y2="88" stroke="rgba(212,175,55,0.15)" stroke-width="0.6" stroke-dasharray="3,3"/>
+          <text x="10" y="104" font-size="9" fill="#00ff66">   voterHash</text>
+          <text x="10" y="120" font-size="9" fill="rgba(249,250,251,0.55)">   passwordHash</text>
+          <text x="10" y="136" font-size="9" fill="rgba(249,250,251,0.55)">   role</text>
+          <text x="10" y="152" font-size="9" fill="rgba(249,250,251,0.55)">   mfaSecret</text>
+          <text x="10" y="168" font-size="9" fill="rgba(249,250,251,0.55)">   createdAt</text>
+        </g>
+
+        <!-- Election -->
+        <g transform="translate(240,30)">
+          <rect width="170" height="185" rx="6" fill="rgba(6,6,6,0.82)" stroke="#d4af37" stroke-width="1.4" filter="url(#glow-gold)"/>
+          <rect width="170" height="28" rx="6" fill="rgba(212,175,55,0.18)" stroke="#d4af37" stroke-width="1.4"/>
+          <rect x="0" y="6" width="170" height="22" fill="rgba(212,175,55,0.18)"/>
+          <text x="85" y="19" text-anchor="middle" font-family="'Cinzel',serif" font-size="10" fill="#d4af37" font-weight="700" letter-spacing="1">ELECTION</text>
+          <line x1="0" y1="28" x2="170" y2="28" stroke="rgba(212,175,55,0.35)" stroke-width="0.8"/>
+          <text x="10" y="46" font-size="9" fill="#d4af37">🔑 id</text>
+          <text x="10" y="62" font-size="9" fill="rgba(249,250,251,0.55)">   title</text>
+          <text x="10" y="78" font-size="9" fill="rgba(249,250,251,0.55)">   description</text>
+          <text x="10" y="94" font-size="9" fill="#ff4500">   status</text>
+          <line x1="0" y1="104" x2="170" y2="104" stroke="rgba(212,175,55,0.15)" stroke-width="0.6" stroke-dasharray="3,3"/>
+          <text x="10" y="120" font-size="9" fill="#d4af37">   merkleRoot</text>
+          <text x="10" y="136" font-size="9" fill="rgba(249,250,251,0.55)">   masterKey</text>
+          <text x="10" y="152" font-size="9" fill="rgba(249,250,251,0.55)">   startTime</text>
+          <text x="10" y="168" font-size="9" fill="rgba(249,250,251,0.55)">   endTime</text>
+          <text x="10" y="184" font-size="9" fill="rgba(249,250,251,0.55)">   votingMode</text>
+        </g>
+
+        <!-- Candidate -->
+        <g transform="translate(240,260)">
+          <rect width="170" height="150" rx="6" fill="rgba(6,6,6,0.82)" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect width="170" height="28" rx="6" fill="rgba(79,195,247,0.12)" stroke="#4fc3f7" stroke-width="1.2"/>
+          <rect x="0" y="6" width="170" height="22" fill="rgba(79,195,247,0.12)"/>
+          <text x="85" y="19" text-anchor="middle" font-family="'Cinzel',serif" font-size="10" fill="#4fc3f7" font-weight="700" letter-spacing="1">CANDIDATE</text>
+          <line x1="0" y1="28" x2="170" y2="28" stroke="rgba(79,195,247,0.3)" stroke-width="0.8"/>
+          <text x="10" y="46" font-size="9" fill="#d4af37">🔑 id</text>
+          <text x="10" y="62" font-size="9" fill="rgba(249,250,251,0.55)">   name</text>
+          <text x="10" y="78" font-size="9" fill="rgba(249,250,251,0.55)">   party</text>
+          <text x="10" y="94" font-size="9" fill="rgba(249,250,251,0.55)">   bio</text>
+          <line x1="0" y1="104" x2="170" y2="104" stroke="rgba(79,195,247,0.2)" stroke-width="0.6" stroke-dasharray="3,3"/>
+          <text x="10" y="120" font-size="9" fill="#4fc3f7">🔗 electionId</text>
+          <text x="10" y="136" font-size="9" fill="rgba(249,250,251,0.55)">   symbol</text>
+          <text x="10" y="152" font-size="9" fill="rgba(249,250,251,0.55)">   manifesto</text>
+        </g>
+
+        <!-- Vote (center) -->
+        <g transform="translate(480,140)">
+          <rect width="180" height="210" rx="6" fill="rgba(6,6,6,0.88)" stroke="#d4af37" stroke-width="1.8" filter="url(#glow-gold)"/>
+          <rect width="180" height="28" rx="6" fill="rgba(212,175,55,0.22)" stroke="#d4af37" stroke-width="1.8"/>
+          <rect x="0" y="6" width="180" height="22" fill="rgba(212,175,55,0.22)"/>
+          <text x="90" y="19" text-anchor="middle" font-family="'Cinzel',serif" font-size="10" fill="#d4af37" font-weight="700" letter-spacing="2">VOTE</text>
+          <line x1="0" y1="28" x2="180" y2="28" stroke="rgba(212,175,55,0.45)" stroke-width="0.8"/>
+          <text x="10" y="46" font-size="9" fill="#d4af37">🔑 id</text>
+          <text x="10" y="62" font-size="9" fill="#00ff66">   voterHash</text>
+          <line x1="0" y1="72" x2="180" y2="72" stroke="rgba(212,175,55,0.15)" stroke-width="0.6" stroke-dasharray="3,3"/>
+          <text x="10" y="88" font-size="9" fill="#d4af37">   voteHash</text>
+          <text x="10" y="104" font-size="9" fill="#d4af37">   prevHash</text>
+          <text x="10" y="120" font-size="9" fill="rgba(249,250,251,0.55)">   commitment</text>
+          <text x="10" y="136" font-size="9" fill="#00ff66">   ringId</text>
+          <text x="10" y="152" font-size="9" fill="rgba(249,250,251,0.55)">   revealNonce</text>
+          <text x="10" y="168" font-size="9" fill="rgba(249,250,251,0.55)">   timestamp</text>
+          <line x1="0" y1="178" x2="180" y2="178" stroke="rgba(212,175,55,0.15)" stroke-width="0.6" stroke-dasharray="3,3"/>
+          <text x="10" y="194" font-size="9" fill="#4fc3f7">🔗 electionId</text>
+          <text x="10" y="210" font-size="9" fill="#4fc3f7">🔗 candidateId</text>
+        </g>
+
+        <!-- VoterPassport -->
+        <g transform="translate(700,30)">
+          <rect width="160" height="155" rx="6" fill="rgba(6,6,6,0.82)" stroke="#00ff66" stroke-width="1.2"/>
+          <rect width="160" height="28" rx="6" fill="rgba(0,255,102,0.1)" stroke="#00ff66" stroke-width="1.2"/>
+          <rect x="0" y="6" width="160" height="22" fill="rgba(0,255,102,0.1)"/>
+          <text x="80" y="19" text-anchor="middle" font-family="'Cinzel',serif" font-size="8.5" fill="#00ff66" font-weight="700" letter-spacing="0.5">VOTER PASSPORT</text>
+          <line x1="0" y1="28" x2="160" y2="28" stroke="rgba(0,255,102,0.3)" stroke-width="0.8"/>
+          <text x="10" y="46" font-size="9" fill="#d4af37">🔑 id</text>
+          <text x="10" y="62" font-size="9" fill="#00ff66">   voterHash</text>
+          <text x="10" y="78" font-size="9" fill="rgba(249,250,251,0.55)">   participationCnt</text>
+          <text x="10" y="94" font-size="9" fill="rgba(249,250,251,0.55)">   sigilLevel</text>
+          <text x="10" y="110" font-size="9" fill="rgba(249,250,251,0.55)">   sigil (SVG)</text>
+          <text x="10" y="126" font-size="9" fill="rgba(249,250,251,0.55)">   createdAt</text>
+          <text x="10" y="142" font-size="9" fill="rgba(249,250,251,0.55)">   lastSeen</text>
+          <text x="10" y="156" font-size="9" fill="#4fc3f7">🔗 userId</text>
+        </g>
+
+        <!-- AuditChainLog -->
+        <g transform="translate(700,230)">
+          <rect width="160" height="155" rx="6" fill="rgba(6,6,6,0.82)" stroke="#ff4500" stroke-width="1.2"/>
+          <rect width="160" height="28" rx="6" fill="rgba(255,69,0,0.1)" stroke="#ff4500" stroke-width="1.2"/>
+          <rect x="0" y="6" width="160" height="22" fill="rgba(255,69,0,0.1)"/>
+          <text x="80" y="19" text-anchor="middle" font-family="'Cinzel',serif" font-size="8.5" fill="#ff4500" font-weight="700" letter-spacing="0.5">AUDIT CHAIN LOG</text>
+          <line x1="0" y1="28" x2="160" y2="28" stroke="rgba(255,69,0,0.3)" stroke-width="0.8"/>
+          <text x="10" y="46" font-size="9" fill="#d4af37">🔑 id</text>
+          <text x="10" y="62" font-size="9" fill="rgba(249,250,251,0.55)">   operation</text>
+          <text x="10" y="78" font-size="9" fill="rgba(249,250,251,0.55)">   payload (JSON)</text>
+          <text x="10" y="94" font-size="9" fill="#d4af37">   hash</text>
+          <text x="10" y="110" font-size="9" fill="#d4af37">   prevHash</text>
+          <text x="10" y="126" font-size="9" fill="rgba(249,250,251,0.55)">   timestamp</text>
+          <text x="10" y="142" font-size="9" fill="#4fc3f7">🔗 actorId</text>
+          <text x="10" y="156" font-size="9" fill="#4fc3f7">🔗 electionId</text>
+        </g>
+
+        <!-- MerkleSnapshot -->
+        <g transform="translate(870,140)">
+          <rect width="140" height="130" rx="6" fill="rgba(6,6,6,0.82)" stroke="#d4af37" stroke-width="1.2"/>
+          <rect width="140" height="28" rx="6" fill="rgba(212,175,55,0.14)" stroke="#d4af37" stroke-width="1.2"/>
+          <rect x="0" y="6" width="140" height="22" fill="rgba(212,175,55,0.14)"/>
+          <text x="70" y="19" text-anchor="middle" font-family="'Cinzel',serif" font-size="8" fill="#d4af37" font-weight="700" letter-spacing="0.5">MERKLE SNAPSHOT</text>
+          <line x1="0" y1="28" x2="140" y2="28" stroke="rgba(212,175,55,0.35)" stroke-width="0.8"/>
+          <text x="10" y="46" font-size="9" fill="#d4af37">🔑 id</text>
+          <text x="10" y="62" font-size="9" fill="#d4af37">   merkleRoot</text>
+          <text x="10" y="78" font-size="9" fill="rgba(249,250,251,0.55)">   voteCount</text>
+          <text x="10" y="94" font-size="9" fill="rgba(249,250,251,0.55)">   timestamp</text>
+          <text x="10" y="110" font-size="9" fill="#4fc3f7">🔗 electionId</text>
+          <text x="10" y="126" font-size="9" fill="rgba(249,250,251,0.55)">   depth</text>
+        </g>
+
+        <!-- ───── RELATIONSHIPS (lines) ───── -->
+
+        <!-- Users → Vote (1:N via voterHash) -->
+        <path d="M190,110 Q350,110 480,230" stroke="rgba(212,175,55,0.4)" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+        <text x="275" y="155" font-size="8" fill="rgba(212,175,55,0.55)" transform="rotate(-20,275,155)">votes (1:N)</text>
+
+        <!-- Election → Candidate (1:N) -->
+        <path d="M325,215 L325,260" stroke="rgba(79,195,247,0.5)" stroke-width="1.2" fill="none" marker-end="url(#arr-cyan)"/>
+        <text x="330" y="242" font-size="8" fill="rgba(79,195,247,0.55)">has (1:N)</text>
+
+        <!-- Election → Vote (1:N) -->
+        <path d="M410,120 L480,200" stroke="rgba(212,175,55,0.45)" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
+        <text x="430" y="155" font-size="8" fill="rgba(212,175,55,0.55)">1:N</text>
+
+        <!-- Candidate → Vote (1:N) -->
+        <path d="M410,310 L480,320" stroke="rgba(79,195,247,0.45)" stroke-width="1.2" fill="none" marker-end="url(#arr-cyan)"/>
+        <text x="430" y="310" font-size="8" fill="rgba(79,195,247,0.55)">1:N</text>
+
+        <!-- Users → VoterPassport (1:1) -->
+        <path d="M190,80 Q440,20 700,80" stroke="rgba(0,255,102,0.4)" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#arr-green)"/>
+        <text x="430" y="38" font-size="8" fill="rgba(0,255,102,0.55)">passport (1:1)</text>
+
+        <!-- Users → AuditChainLog (1:N admin) -->
+        <path d="M190,140 Q500,450 700,330" stroke="rgba(255,69,0,0.35)" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#arr-ember)"/>
+        <text x="420" y="445" font-size="8" fill="rgba(255,69,0,0.5)">audits (1:N)</text>
+
+        <!-- Vote → MerkleSnapshot -->
+        <path d="M660,240 Q770,240 870,200" stroke="rgba(212,175,55,0.35)" stroke-width="1.2" fill="none" stroke-dasharray="4,4" marker-end="url(#arr)"/>
+        <text x="730" y="232" font-size="8" fill="rgba(212,175,55,0.5)">snapshot</text>
+
+        <!-- Election → MerkleSnapshot -->
+        <path d="M410,60 Q640,60 870,170" stroke="rgba(212,175,55,0.3)" stroke-width="1" fill="none" stroke-dasharray="3,4" marker-end="url(#arr)"/>
+
+        <!-- Election → AuditChainLog -->
+        <path d="M410,150 Q580,400 700,300" stroke="rgba(255,69,0,0.3)" stroke-width="1" fill="none" stroke-dasharray="4,4" marker-end="url(#arr-ember)"/>
+
+        <!-- Legend -->
+        <g transform="translate(30,420)">
+          <text x="0" y="12" font-size="8" fill="rgba(212,175,55,0.5)" font-family="'Cinzel',serif" letter-spacing="1">LEGEND</text>
+          <line x1="55" y1="8" x2="85" y2="8" stroke="rgba(212,175,55,0.6)" stroke-width="1.2" marker-end="url(#arr)"/>
+          <text x="90" y="12" font-size="8" fill="rgba(249,250,251,0.45)">FK reference</text>
+          <line x1="170" y1="8" x2="200" y2="8" stroke="rgba(212,175,55,0.4)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+          <text x="205" y="12" font-size="8" fill="rgba(249,250,251,0.45)">logical link</text>
+          <circle cx="300" cy="8" r="4" fill="none" stroke="#d4af37" stroke-width="1"/>
+          <text x="308" y="12" font-size="8" fill="rgba(212,175,55,0.7)">🔑 PK</text>
+          <text x="360" y="12" font-size="8" fill="rgba(79,195,247,0.7)">🔗 FK</text>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- SLIDE 12 — ROADMAP -->
+  <section class="slide" data-index="11" data-title="Roadmap">
+    <div class="slide-num-badge">12</div>
+    <div class="label-rune animate-in">Development Trajectory</div>
+    <h2 class="slide-title animate-in" style="font-size:clamp(1.6rem,4vw,2.8rem);">Research <span class="gold">Roadmap</span></h2>
+    <div class="divider animate-in"></div>
+    <div style="width:100%;max-width:820px;" class="animate-in">
+      <div class="roadmap-row">
+        <div class="phase-dot phase-active">1</div>
+        <div style="flex:1;"><div style="font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:0.25rem;">Current · Hash-Chain + Ring Anonymity</div><div class="feature-body">SHA-256 chaining, commitment scheme, ring windows, AES-256-GCM, admin meta-chain, IRV tallying — fully deployed.</div></div>
+        <div style="font-size:0.65rem;letter-spacing:0.2em;color:var(--chaingreen);text-transform:uppercase;">Live</div>
+      </div>
+      <div class="roadmap-row">
+        <div class="phase-dot phase-future">2</div>
+        <div style="flex:1;"><div style="font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ash);margin-bottom:0.25rem;">Phase 2 · zk-SNARK Vote Verification</div><div class="feature-body">Non-interactive zero-knowledge proofs replacing the commitment-reveal scheme — auditors verify ballot correctness without learning the candidate.</div></div>
+      </div>
+      <div class="roadmap-row">
+        <div class="phase-dot phase-future">3</div>
+        <div style="flex:1;"><div style="font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ash);margin-bottom:0.25rem;">Phase 3 · Decentralized Identifiers (DIDs)</div><div class="feature-body">W3C DID protocols replacing the central User table — sovereign cross-national identity without a central authority.</div></div>
+      </div>
+      <div class="roadmap-row">
+        <div class="phase-dot phase-future">4</div>
+        <div style="flex:1;"><div style="font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ash);margin-bottom:0.25rem;">Phase 4 · Fully Homomorphic Encryption</div><div class="feature-body">Counting votes via direct ciphertext arithmetic — absolute zero visibility into individual ballot data, no unsealing ceremony required.</div></div>
+      </div>
+      <div class="roadmap-row">
+        <div class="phase-dot phase-future">5</div>
+        <div style="flex:1;"><div style="font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ash);margin-bottom:0.25rem;">Phase 5 · Post-Quantum (CRYSTALS-Dilithium + Kyber)</div><div class="feature-body">Lattice-based signatures and key encapsulation pre-empting "harvest now, decrypt later" quantum adversary strategies.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 13 — CTA -->
+  <section class="slide" data-index="12" data-title="Experience ChainVote">
+    <div class="slide-num-badge">13</div>
+    <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(212,175,55,0.06) 0%,transparent 70%);border-radius:50%;animation:orb-drift 12s ease-in-out infinite alternate;"></div>
+    </div>
+    <div class="label-rune animate-in" style="letter-spacing:0.6em;">World's Most Secure Electronic Voting System</div>
+    <h1 class="slide-title animate-in" style="font-size:clamp(2.5rem,7vw,5rem);">Chain<span class="gold">Vote</span></h1>
+    <p class="slide-tagline animate-in" style="font-size:0.75rem;letter-spacing:0.4em;margin-bottom:0.5rem;">Trust must be proven — hash by hash.</p>
+    <div class="divider animate-in"></div>
+    <p class="slide-body-text animate-in" style="margin-bottom:2.5rem;font-size:0.82rem;">The protocol is live. The ledger is immutable. The election is yours to verify.</p>
+    <a href="https://chain-vote.onrender.com" target="_blank" rel="noopener" class="cta-btn animate-in">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 6V4.5a3 3 0 016 0V6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="10" r="1.5" fill="currentColor"/></svg>
+      Experience ChainVote Now
+    </a>
+    <div style="margin-top:3rem;display:flex;gap:2.5rem;flex-wrap:wrap;justify-content:center;" class="animate-in">
+      <div style="text-align:center;"><div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:var(--gold);text-shadow:0 0 15px var(--gold-glow);">450 TPS</div><div style="font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-top:0.2rem;">Throughput</div></div>
+      <div style="width:1px;background:rgba(212,175,55,0.15);"></div>
+      <div style="text-align:center;"><div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:var(--gold);text-shadow:0 0 15px var(--gold-glow);">2¹²⁸</div><div style="font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-top:0.2rem;">Ops to break</div></div>
+      <div style="width:1px;background:rgba(212,175,55,0.15);"></div>
+      <div style="text-align:center;"><div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:var(--gold);text-shadow:0 0 15px var(--gold-glow);">$0.00</div><div style="font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-top:0.2rem;">Per vote</div></div>
+      <div style="width:1px;background:rgba(212,175,55,0.15);"></div>
+      <div style="text-align:center;"><div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:var(--gold);text-shadow:0 0 15px var(--gold-glow);">30</div><div style="font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--ash);margin-top:0.2rem;">Core Features</div></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ══════════════════════ JS ══════════════════════ -->
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+  let animating = false;
+
+  const menuPanel = document.getElementById('menu-panel');
+
+  slides.forEach((slide, i) => {
+    const title = slide.dataset.title || `Slide ${i+1}`;
+    const btn = document.createElement('button');
+    btn.className = 'menu-item' + (i === 0 ? ' current' : '');
+    btn.innerHTML = `<span class="menu-num">${String(i+1).padStart(2,'0')}</span><span class="menu-item-title">${title}</span>`;
+    btn.onclick = () => { goTo(i); toggleMenu(false); };
+    menuPanel.appendChild(btn);
+  });
+
+  function goTo(idx) {
+    if (animating || idx === current || idx < 0 || idx >= total) return;
+    animating = true;
+    const prev = slides[current];
+    const next = slides[idx];
+    prev.classList.add('exit');
+    prev.classList.remove('active');
+    setTimeout(() => { prev.classList.remove('exit'); }, 650);
+    next.classList.add('active');
+    current = idx;
+    updateUI();
+    setTimeout(() => { animating = false; }, 700);
+  }
+
+  function changeSlide(dir) { goTo(current + dir); }
+
+  function updateUI() {
+    document.getElementById('prev-btn').disabled = current === 0;
+    document.getElementById('next-btn').disabled = current === total - 1;
+    document.querySelectorAll('.menu-item').forEach((m,i) => m.classList.toggle('current', i === current));
+  }
+
+  let menuOpen = false;
+  function toggleMenu(force) {
+    menuOpen = (force !== undefined) ? force : !menuOpen;
+    document.getElementById('menu-panel').classList.toggle('open', menuOpen);
+    document.getElementById('hamburger').classList.toggle('open', menuOpen);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') changeSlide(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') changeSlide(-1);
+    if (e.key === 'Escape') toggleMenu(false);
+  });
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) changeSlide(dx > 0 ? 1 : -1);
+  });
+
+  // Canvas particles
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  const particles = [];
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  for (let i = 0; i < 70; i++) {
+    particles.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, r: Math.random()*1.2+0.2, vx: (Math.random()-0.5)*0.15, vy: (Math.random()-0.5)*0.15, a: Math.random()*0.35+0.05, pulse: Math.random()*Math.PI*2 });
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.pulse += 0.008;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      const alpha = p.a*(0.6+0.4*Math.sin(p.pulse));
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(212,175,55,${alpha})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+  updateUI();
+</script>
+</body>
+</html>

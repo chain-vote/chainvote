@@ -12,3 +12,5 @@ backend/prisma/dev.db
 backend/prisma/dev.db-journal
 backend/generated/
 
+# Secure Firebase Access Keys
+firebase-service-account.json

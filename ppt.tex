@@ -1,0 +1,144 @@
+\documentclass[10pt]{beamer}
+
+% --- Theme and Colors ---
+\usetheme{metropolis}
+\usepackage{appendixnumberbeamer}
+\usepackage{booktabs}
+\usepackage{pgfplots}
+\usepackage{tabularx}
+\usepackage{listings}
+\pgfplotsset{compat=1.18}
+
+\definecolor{chainblue}{RGB}{30,80,160}
+\definecolor{chainred}{RGB}{190,30,45}
+\definecolor{codebg}{RGB}{245,245,245}
+
+\setbeamercolor{palette primary}{fg=white, bg=chainblue}
+\setbeamercolor{progress bar}{fg=chainblue, bg=gray!30}
+
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\tiny,
+    breaklines=true,
+    keywordstyle=\color{chainblue},
+    frame=single
+}
+
+% --- Metadata ---
+\title{ChainVote: Technical Architecture}
+\subtitle{TypeScript Frontend, Node.js Orchestrator, and Hybrid Persistence}
+\author{Srishti Jain, Diksha Rathi, Tanay Trivedi}
+\institute{STME, NMIMS Indore}
+
+\begin{document}
+
+\maketitle
+
+\section{Frontend: The TypeScript Manifestation}
+
+\begin{frame}{Type-Safe UI Architecture}
+    The frontend is built with \textbf{React + Vite + TypeScript}, ensuring a rigid contract between the UI and the voting protocol.
+    \begin{itemize}
+        \item \textbf{Strict Typing:} All election payloads and voter states are governed by TS Interfaces to prevent client-side injection.
+        \item \textbf{State Management:} Powered by \textbf{Zustand} for lightweight, high-velocity updates during "Flash Elections."
+        \item \textbf{The Ritual UX:} Uses \textbf{Three.js} for a 3D navigable Merkle Tree, allowing voters to visually confirm their hash placement.
+        \item \textbf{Cryptography:} Client-side nonce generation using the Web Crypto API for the commitment scheme.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{TypeScript Protocol Enforcement}
+    \begin{lstlisting}[language=SQL, caption={Voter State Interface}]
+    interface VoterManifest {
+      voterHash: string; // SHA-256 Detached Identity
+      hasVoted: boolean;
+      sigilLevel: number;
+      activeElectionId: string | null;
+    }
+    
+    type VotePayload = {
+      candidateId: string;
+      commitment: string; // H(Candidate + Nonce)
+      encryptedNonce: string; // AES-GCM
+    };
+    \end{lstlisting}
+    \textit{Ensures zero "any" types in critical cryptographic paths.}
+\end{frame}
+
+\section{Backend: The Node.js Orchestrator}
+
+\begin{frame}{Asynchronous Sequence Engine}
+    The backend is an event-driven \textbf{Node.js/Express} orchestrator optimized for 450+ TPS.
+    \begin{itemize}
+        \item \textbf{Atomic Sequencer:} Handles incoming ballots by fetching the latest `prevHash` and computing the new chain link in-memory.
+        \item \textbf{WebSocket Integration:} Real-time telemetry via \textbf{Socket.io} for live "Vote Velocity" tracking and chain-growth visualization.
+        \item \textbf{Rate Limiting:} Multi-tier throttling at the API Gateway to neutralize Sybil flood attacks.
+        \item \textbf{Security:} Middleware-level JWT validation coupled with mandatory Email-OTP MFA.
+    \end{itemize}
+\end{frame}
+
+\section{Persistence: Hybrid SQL Strategy}
+
+\begin{frame}{PostgreSQL with SQLite3 Fallback}
+    ChainVote utilizes a flexible persistence layer managed via **Prisma ORM**.
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \textbf{Production: PostgreSQL}
+            \begin{itemize}
+                \item Multi-row UNIQUE constraints.
+                \item High-concurrency indexing.
+                \item Complex Tally Aggregations (IRV).
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \textbf{Edge/Dev: SQLite3}
+            \begin{itemize}
+                \item Local-first deployments.
+                \item Fallback during primary DB maintenance.
+                \item Zero-config testing.
+            \end{itemize}
+        \end{column}
+    \end{columns}
+    \vspace{0.4cm}
+    \textbf{The Prisma Bridge:} Schema-as-code allows identical cryptographic logic regardless of the underlying SQL engine.
+\end{frame}
+
+\begin{frame}{The Ledger Schema (Prisma)}
+    \begin{lstlisting}
+    model Vote {
+      id          String   @id @default(uuid())
+      voteHash    String   @unique // The Chaining Link
+      prevHash    String   // Pointer to H(i-1)
+      voterHash   String   // Anonymized ID
+      commitment  String   // H(choice + nonce)
+      electionId  String
+      timestamp   DateTime @default(now())
+      
+      @@unique([voterHash, electionId]) // Sybil Defense
+    }
+    \end{lstlisting}
+    \textit{Prevents double-voting at the database hardware level.}
+\end{frame}
+
+\section{System Integrity}
+
+\begin{frame}{Fork Detection \& Resolution}
+    In high-concurrency Node.js environments, two threads may read the same `prevHash`.
+    \begin{enumerate}
+        \item \textbf{Collision:} Database throws a `UniqueConstraintViolation` on the `prevHash` sequence.
+        \item \textbf{Detection:} The Orchestrator catches the error and logs a `ChainForkLog`.
+        \item \textbf{Resolution:} **Jittered Exponential Backoff**. The thread sleeps for a random interval ($10\dots50$ms), re-queries the latest hash, and re-sequences the vote.
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item \textbf{Frontend:} Type-safe React/TS for cryptographic accuracy.
+        \item \textbf{Backend:} High-velocity Node.js for real-time orchestration.
+        \item \textbf{Database:} Robust Hybrid SQL with cryptographic row-chaining.
+    \end{itemize}
+    \vspace{0.5cm}
+    \centering
+    \textbf{Architecture is the first line of democratic defense.}
+\end{frame}
+
+\end{document}

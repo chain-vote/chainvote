@@ -14,7 +14,7 @@ export function DatabaseEngine() {
     setError(null)
     setResult(null)
     try {
-      const { data } = await api.executeSQL(query)
+      const { data } = await api.executeSQL({ query })
       setResult(data)
     } catch (err: any) {
       setError(err.message || 'Execution failed')
