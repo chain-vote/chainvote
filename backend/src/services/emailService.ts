@@ -84,7 +84,7 @@ export const emailService = {
         console.error(`[ChainVote:Email] SMTP FAILURE (${context}) via ${smtpHost}:${smtpPort}: ${err.message}`)
         console.warn(`[ChainVote:Email] Hint: If 465 and 587 fail on Render, try port 2525 or verify sender ${smtpUser}.`)
         
-        if (smtpPass.startsWith('xkeysib-')) {
+        if (smtpPass.startsWith('xkeysib-') || smtpPass.startsWith('xsmtpsib-')) {
           try {
             console.log(`[ChainVote:Email] Attempting Brevo HTTP API fallback (Bypassing SMTP ports)...`)
             const response = await fetch('https://api.brevo.com/v3/smtp/email', {
