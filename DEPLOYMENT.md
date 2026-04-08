@@ -17,7 +17,7 @@ This guide covers deploying the full ChainVote full-stack application natively o
      - **Name**: `chainvote-backend`
      - **Root Directory**: `backend`
      - **Environment**: Node
-     - **Build Command**: `npm install && npx prisma generate`
+     - **Build Command**: `npm install && npx prisma generate && npx prisma db push`
      - **Start Command**: `npm run build && npm start`
    - Go to **Advanced** -> **Add Environment Variables** and add:
      ```env
