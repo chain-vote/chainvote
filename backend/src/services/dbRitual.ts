@@ -78,43 +78,49 @@ CREATE TRIGGER after_vote_insert
 CREATE OR REPLACE FUNCTION compute_merkle_root(p_election_id UUID)
 RETURNS VARCHAR(64) AS $$
 DECLARE
-  result VARCHAR(64);
+  v_hashes VARCHAR(64)[];
+  v_next_hashes VARCHAR(64)[];
+  v_count INT;
+  i INT;
+  v_result VARCHAR(64);
 BEGIN
-  WITH RECURSIVE
-  leaves AS (
-    SELECT
-      "voteHash" as node_hash,
-      ROW_NUMBER() OVER (ORDER BY timestamp) - 1 AS pos
+  -- Initial leaves: Fetch all vote hashes for the election, ordered by time
+  SELECT array_agg("voteHash" ORDER BY timestamp)
+    INTO v_hashes
     FROM "Vote"
-    WHERE "electionId" = p_election_id::text
-  ),
-  tree AS (
-    SELECT node_hash, pos, 0 AS lvl
-    FROM leaves
-    UNION ALL
-    SELECT
-      encode(sha256((l.node_hash || r.node_hash)::bytea), 'hex'),
-      l.pos / 2,
-      l.lvl + 1
-    FROM tree l
-    JOIN tree r
-      ON l.lvl = r.lvl
-     AND l.pos % 2 = 0
-     AND r.pos = l.pos + 1
-  ),
-  root AS (
-    SELECT node_hash
-    FROM tree
-    ORDER BY lvl DESC, pos
-    LIMIT 1
-  )
-  SELECT node_hash INTO result FROM root;
+   WHERE "electionId" = p_election_id::text;
 
+  v_count := array_length(v_hashes, 1);
+  
+  -- Handle empty case
+  IF v_count IS NULL OR v_count = 0 THEN
+    RETURN NULL;
+  END IF;
+
+  -- Iteratively hash pairs until only the root remains
+  WHILE v_count > 1 LOOP
+    v_next_hashes := '{}';
+    FOR i IN 1..v_count BY 2 LOOP
+      IF i + 1 <= v_count THEN
+        -- Pair up and hash
+        v_next_hashes := array_append(v_next_hashes, encode(sha256((v_hashes[i] || v_hashes[i+1])::bytea), 'hex'));
+      ELSE
+        -- Odd leaf, carry it up to the next level
+        v_next_hashes := array_append(v_next_hashes, v_hashes[i]);
+      END IF;
+    END LOOP;
+    v_hashes := v_next_hashes;
+    v_count := array_length(v_hashes, 1);
+  END LOOP;
+
+  v_result := v_hashes[1];
+
+  -- Update the election record with the new root
   UPDATE "Election"
-     SET "merkleRoot" = result
+     SET "merkleRoot" = v_result
    WHERE id = p_election_id::text;
 
-  RETURN result;
+  RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -152,7 +158,7 @@ export async function applyDatabaseRituals() {
     return
   }
 
-  console.log('[ChainVote:Ritual] Initializing PostgreSQL Bulletproof Rituals...')
+  console.log('[ChainVote:Ritual] Initializing PostgreSQL Bulletproof Rituals (Iterative Mode)...')
   
   try {
     const statements = POSTGRES_RITUAL_SQL
