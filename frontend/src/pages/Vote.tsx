@@ -63,7 +63,7 @@ export function Vote() {
         <MerkleTree3D />
       </div>
 
-      <div className="relative z-10 px-6 py-10 pointer-events-auto">
+      <div className="relative z-10 px-6 pt-32 pb-20 pointer-events-auto">
         <div className="mx-auto max-w-5xl">
           <div className="flex items-center justify-between gap-4">
             <div>

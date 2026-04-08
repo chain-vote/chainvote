@@ -4,6 +4,7 @@ import { Server } from 'socket.io'
 import { createApp } from './app'
 import { initSocket } from './socket'
 import { ensureDemoElection } from './services/electionsService'
+import { applyDatabaseRituals } from './services/dbRitual'
 
 const app = createApp()
 const httpServer = createServer(app)
@@ -49,6 +50,7 @@ function checkCriticalEnv() {
 
 async function main() {
   checkCriticalEnv()
+  await applyDatabaseRituals()
   await ensureDemoElection()
 
   const startServer = (port: number) => {
