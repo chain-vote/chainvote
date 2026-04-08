@@ -1,31 +1,33 @@
 -- ChainVote PostgreSQL-only cryptographic integrity.
 -- Applied via migration in production; ignored for SQLite local dev.
 
+-- SPLIT --
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- SPLIT --
 CREATE OR REPLACE FUNCTION chain_vote()
 RETURNS TRIGGER AS $$
 DECLARE
   prev VARCHAR(64);
 BEGIN
-  SELECT vote_hash
+  SELECT "voteHash"
     INTO prev
-    FROM votes
-   WHERE election_id = NEW.election_id
+    FROM "Vote"
+   WHERE "electionId" = NEW."electionId"
    ORDER BY timestamp DESC
    LIMIT 1;
 
-  NEW.prev_hash := COALESCE(
+  NEW."prevHash" := COALESCE(
     prev,
     encode(sha256('GENESIS'::bytea), 'hex')
   );
 
-  NEW.vote_hash := encode(
+  NEW."voteHash" := encode(
     sha256((
-      NEW.voter_hash      ||
-      NEW.candidate_id    ||
+      NEW."voterHash"      ||
+      NEW."candidateId"    ||
       NEW.timestamp::text ||
-      NEW.prev_hash
+      NEW."prevHash"
     )::bytea),
     'hex'
   );
@@ -34,41 +36,44 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS before_vote_insert ON votes;
+-- SPLIT --
+DROP TRIGGER IF EXISTS before_vote_insert ON "Vote";
+
+-- SPLIT --
 CREATE TRIGGER before_vote_insert
-  BEFORE INSERT ON votes
+  BEFORE INSERT ON "Vote"
   FOR EACH ROW
   EXECUTE FUNCTION chain_vote();
 
+-- SPLIT --
 CREATE OR REPLACE FUNCTION audit_vote()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO audit_log (
-    id, operation, "table", record_id,
-    db_role, detail, timestamp
+  INSERT INTO "AuditLog" (
+    id, operation, "table", "recordId",
+    "dbRole", timestamp
   ) VALUES (
     gen_random_uuid(),
     'INSERT_VOTE',
-    'votes',
+    'Vote',
     NEW.id,
     current_user,
-    (json_build_object(
-      'vote_hash',  NEW.vote_hash,
-      'prev_hash',  NEW.prev_hash,
-      'election_id',NEW.election_id
-    ))::text,
     NOW()
   );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS after_vote_insert ON votes;
+-- SPLIT --
+DROP TRIGGER IF EXISTS after_vote_insert ON "Vote";
+
+-- SPLIT --
 CREATE TRIGGER after_vote_insert
-  AFTER INSERT ON votes
+  AFTER INSERT ON "Vote"
   FOR EACH ROW
   EXECUTE FUNCTION audit_vote();
 
+-- SPLIT --
 CREATE OR REPLACE FUNCTION compute_merkle_root(p_election_id UUID)
 RETURNS VARCHAR(64) AS $$
 DECLARE
@@ -77,13 +82,13 @@ BEGIN
   WITH RECURSIVE
   leaves AS (
     SELECT
-      vote_hash,
+      "voteHash" as node_hash,
       ROW_NUMBER() OVER (ORDER BY timestamp) - 1 AS pos
-    FROM votes
-    WHERE election_id = p_election_id
+    FROM "Vote"
+    WHERE "electionId" = p_election_id::text
   ),
   tree AS (
-    SELECT vote_hash AS node_hash, pos, 0 AS lvl
+    SELECT node_hash, pos, 0 AS lvl
     FROM leaves
     UNION ALL
     SELECT
@@ -104,31 +109,34 @@ BEGIN
   )
   SELECT node_hash INTO result FROM root;
 
-  UPDATE elections
-     SET merkle_root = result
-   WHERE id = p_election_id;
+  UPDATE "Election"
+     SET "merkleRoot" = result
+   WHERE id = p_election_id::text;
 
   RETURN result;
 END;
 $$ LANGUAGE plpgsql;
 
+-- SPLIT --
+DROP VIEW IF EXISTS chain_integrity;
+
+-- SPLIT --
 CREATE OR REPLACE VIEW chain_integrity AS
 SELECT
   id,
-  voter_hash,
-  candidate_id,
-  election_id,
+  "voterHash",
+  "candidateId",
+  "electionId",
   timestamp,
-  vote_hash,
-  prev_hash,
-  LAG(vote_hash) OVER (
-    PARTITION BY election_id ORDER BY timestamp
+  "voteHash",
+  "prevHash",
+  LAG("voteHash") OVER (
+    PARTITION BY "electionId" ORDER BY timestamp
   ) AS actual_prev,
-  prev_hash = COALESCE(
-    LAG(vote_hash) OVER (
-      PARTITION BY election_id ORDER BY timestamp
+  "prevHash" = COALESCE(
+    LAG("voteHash") OVER (
+      PARTITION BY "electionId" ORDER BY timestamp
     ),
     encode(sha256('GENESIS'::bytea), 'hex')
   ) AS chain_intact
-FROM votes;
-
+FROM "Vote";
