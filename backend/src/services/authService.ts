@@ -26,17 +26,23 @@ function randomOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
+// Global normalization helper
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
 export const authService = {
   async register({ email, password, role }: { email: string; password: string; role: 'VOTER' | 'ADMIN' }) {
+    const cleanEmail = normalizeEmail(email)
     const passwordHash = await bcrypt.hash(password, 10)
     const salt = process.env.SERVER_SALT || ''
     
     // voterHash is used for cryptographic anonymity/identity tie in the Merkle Tree
-    const voterHash = role === 'VOTER' ? sha256Hex(`${email}||${salt}||${Date.now()}`) : null
+    const voterHash = role === 'VOTER' ? sha256Hex(`${cleanEmail}||${salt}||${Date.now()}`) : null
 
     const user = await prisma.user.create({
       data: {
-        email,
+        email: cleanEmail,
         passwordHash,
         role,
         voterHash,
@@ -53,7 +59,8 @@ export const authService = {
   },
 
   async login({ email, password, requestedRole }: { email: string; password: string; requestedRole: 'VOTER' | 'ADMIN' }) {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const cleanEmail = normalizeEmail(email)
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } })
     if (!user) return { success: false as const }
 
     const valid = await bcrypt.compare(password, user.passwordHash)
@@ -121,7 +128,8 @@ export const authService = {
   },
 
   async requestPasswordReset(email: string) {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const cleanEmail = normalizeEmail(email)
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } })
     if (!user) {
       return { success: false, reason: 'NOT_FOUND' }
     }
@@ -141,7 +149,8 @@ export const authService = {
   },
 
   async verifyPasswordResetOTP(email: string, otp: string) {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const cleanEmail = normalizeEmail(email)
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } })
     if (!user || !user.passwordOtpHash || !user.passwordOtpExpiry) return false
 
     if (user.passwordOtpExpiry.getTime() < Date.now()) return false
@@ -153,7 +162,8 @@ export const authService = {
   },
 
   async resetPassword(email: string, otp: string, newPassword: string) {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const cleanEmail = normalizeEmail(email)
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } })
     if (!user || !user.passwordOtpHash || !user.passwordOtpExpiry) return false
 
     if (user.passwordOtpExpiry.getTime() < Date.now()) return false
@@ -178,17 +188,18 @@ export const authService = {
       if (!admin.apps.length) throw new Error('Firebase Admin not initialized. Ensure FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH is set.')
       
       const decoded = await admin.auth().verifyIdToken(idToken)
-      const email = decoded.email
-      if (!email) throw new Error('Google account lacks email')
+      const rawEmail = decoded.email
+      if (!rawEmail) throw new Error('Google account lacks email')
+      const cleanEmail = normalizeEmail(rawEmail)
       
-      let user = await prisma.user.findUnique({ where: { email } })
+      let user = await prisma.user.findUnique({ where: { email: cleanEmail } })
       
       if (!user) {
          const salt = process.env.SERVER_SALT || ''
-         const voterHash = requestedRole === 'VOTER' ? sha256Hex(`${email}||${salt}||${Date.now()}`) : null
+         const voterHash = requestedRole === 'VOTER' ? sha256Hex(`${cleanEmail}||${salt}||${Date.now()}`) : null
          user = await prisma.user.create({
            data: {
-             email,
+             email: cleanEmail,
              passwordHash: 'OAUTH_PROVIDER',
              role: requestedRole,
              voterHash
@@ -214,4 +225,3 @@ export const authService = {
     }
   },
 }
-
