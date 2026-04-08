@@ -6,7 +6,7 @@ generator client {
 datasource db {
   // Prisma does not allow env() for provider; keep SQLite for local dev.
   // For PostgreSQL production, switch this to "postgresql" and run migrations.
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
