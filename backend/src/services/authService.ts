@@ -6,10 +6,17 @@ import { sha256Hex } from '../lib/crypto'
 import { emailService } from './emailService'
 
 try {
+  const accountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
   const accountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-  if (accountPath && !admin.apps.length) {
-    const serviceAccount = require(require('path').resolve(process.cwd(), accountPath))
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) })
+  
+  if (!admin.apps.length) {
+    if (accountJson) {
+      const serviceAccount = typeof accountJson === 'string' ? JSON.parse(accountJson) : accountJson
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) })
+    } else if (accountPath) {
+      const serviceAccount = require(require('path').resolve(process.cwd(), accountPath))
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) })
+    }
   }
 } catch (e) {
   console.log('[FirebaseAdmin] Initialization skipped/failed:', e)
@@ -154,7 +161,7 @@ export const authService = {
 
   async oauthLogin({ idToken, requestedRole }: { idToken: string; requestedRole: 'VOTER' | 'ADMIN' }) {
     try {
-      if (!admin.apps.length) throw new Error('Firebase Admin not initialized. Ensure FIREBASE_SERVICE_ACCOUNT_PATH is set.')
+      if (!admin.apps.length) throw new Error('Firebase Admin not initialized. Ensure FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH is set.')
       
       const decoded = await admin.auth().verifyIdToken(idToken)
       const email = decoded.email
