@@ -324,6 +324,20 @@ router.post('/debug/test-email', requireAdmin, async (req, res) => {
 })
 
 // ─── SQL Workbench / Database Engine ─────────────────────────────────────────
+router.get('/db-engine/tables', requireAdmin, async (req, res) => {
+  try {
+    const isPostgres = process.env.DATABASE_URL?.startsWith('postgres');
+    const query = isPostgres 
+      ? "SELECT table_name as name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
+      : "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;";
+    
+    const tables: any[] = await prisma.$queryRawUnsafe(query);
+    res.json({ success: true, tables: tables.map(t => t.name) });
+  } catch (err: any) {
+    res.status(500).json({ error: `Failed to fetch tables: ${err.message}` });
+  }
+});
+
 router.post('/db-engine/execute', requireAdmin, async (req, res) => {
   try {
     const { query } = req.body
