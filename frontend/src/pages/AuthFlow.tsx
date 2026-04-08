@@ -18,16 +18,20 @@ export function AuthFlow() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  
   const [isForgotMode, setIsForgotMode] = useState(false)
-  const [resetEmailSent, setResetEmailSent] = useState(false)
+  const [resetStep, setResetStep] = useState<'EMAIL' | 'OTP' | 'PASSWORD'>('EMAIL')
+  const [resetRole, setResetRole] = useState('')
   const [resetOtp, setResetOtp] = useState('')
   const [resetNewPassword, setResetNewPassword] = useState('')
   const [resetPasswordRetype, setResetPasswordRetype] = useState('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  
   const [overlay, setOverlay] = useState<{
     isOpen: boolean
     title: string
     message: string
+    onConfirm?: () => void
   }>({
     isOpen: false,
     title: '',
@@ -88,10 +92,50 @@ export function AuthFlow() {
     }
     try {
       const data = await api.requestPasswordReset(email)
-      setResetEmailSent(true)
-      setPreviewUrl(data.previewUrl ?? null)
+      if (data.success) {
+        const roleName = data.role === 'ADMIN' ? 'Election Commissioner' : 'Citizen Voter'
+        setResetRole(roleName)
+        setPreviewUrl(data.previewUrl ?? null)
+        setOverlay({
+          isOpen: true,
+          title: 'Identity Found',
+          message: `You are registered as ${roleName}. Check your inbox for the system spell.`,
+          onConfirm: () => {
+             setOverlay(s => ({ ...s, isOpen: false }))
+             setResetStep('OTP')
+          }
+        })
+      } else {
+        setOverlay({
+          isOpen: true,
+          title: 'Unknown Entity',
+          message: "You weren't found in our scroll - please register as a role."
+        })
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to request reset.')
+    }
+  }
+
+  const handleVerifyOtp = async (otpValue: string) => {
+    if (otpValue.length !== 6) return
+    try {
+      const data = await api.verifyResetOtp({ email, otp: otpValue })
+      if (data.success) {
+        setOverlay({
+          isOpen: true,
+          title: 'Spell Matched',
+          message: 'The system spell has matched your essence. You may now reforge your key.',
+          onConfirm: () => {
+             setOverlay(s => ({ ...s, isOpen: false }))
+             setResetStep('PASSWORD')
+          }
+        })
+      } else {
+        setError('The spell does not match the scroll records.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Verification ritual failed.')
     }
   }
 
@@ -104,10 +148,20 @@ export function AuthFlow() {
     }
     try {
       await api.resetPassword({ email, otp: resetOtp, newPassword: resetNewPassword })
-      setOverlay({ isOpen: true, title: 'Key Reforged', message: 'Your password has been successfully reset. You may now login.' })
-      setIsForgotMode(false)
-      setResetEmailSent(false)
-      setPassword('')
+      setOverlay({ 
+        isOpen: true, 
+        title: 'Key Reforged', 
+        message: 'Identity reset successfully. Login again to manifest your will.',
+        onConfirm: () => {
+          setOverlay(s => ({ ...s, isOpen: false }))
+          setIsForgotMode(false)
+          setResetStep('EMAIL')
+          setResetOtp('')
+          setResetNewPassword('')
+          setResetPasswordRetype('')
+          setPassword('')
+        }
+      })
     } catch (err: any) {
       setOverlay({ isOpen: true, title: 'Ritual Failed', message: err.message || 'Invalid or expired system spell.' })
     }
@@ -127,7 +181,7 @@ export function AuthFlow() {
           {title}
         </h2>
         <p className="font-cinzel text-[10px] tracking-[0.3em] text-center text-ash uppercase mb-10">
-          {isLogin ? 'Enter the Vault' : 'Create New Identity'}
+          {isForgotMode ? 'Reforge Identity' : (isLogin ? 'Enter the Vault' : 'Create New Identity')}
         </p>
 
         {!isForgotMode ? (
@@ -148,7 +202,7 @@ export function AuthFlow() {
               <div className="flex justify-between items-center px-1">
                 <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase">Secret Key</label>
                 {isLogin && (
-                  <button type="button" onClick={() => { setIsForgotMode(true); setError(''); }} className="text-[9px] text-gold hover:text-white uppercase tracking-widest transition-colors">Forgot Password?</button>
+                  <button type="button" onClick={() => { setIsForgotMode(true); setResetStep('EMAIL'); setError(''); }} className="text-[9px] text-gold hover:text-white uppercase tracking-widest transition-colors">Forgot Password?</button>
                 )}
               </div>
               <input 
@@ -192,13 +246,13 @@ export function AuthFlow() {
               disabled={authMutation.isPending}
               className="w-full bg-white/5 border border-white/10 py-4 rounded-lg font-cinzel text-xs tracking-[0.2em] uppercase flex items-center justify-center gap-3 hover:bg-white/10 hover:border-white/30 transition-all active:scale-[0.98] disabled:opacity-50 text-ash hover:text-white"
             >
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg>
+              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg>
               Continue with Google
             </button>
           </form>
         ) : (
           <div className="space-y-6">
-            {!resetEmailSent ? (
+            {resetStep === 'EMAIL' && (
                <form onSubmit={handleRequestReset} className="space-y-6">
                  <div className="space-y-2">
                     <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">Email for Recovery</label>
@@ -219,21 +273,46 @@ export function AuthFlow() {
                     Send Help
                   </button>
                </form>
-            ) : (
-               <form onSubmit={handleResetPassword} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase ml-1">System Spell (OTP)</label>
+            )}
+
+            {resetStep === 'OTP' && (
+               <div className="space-y-6">
+                  <div className="space-y-2 text-center">
+                    <p className="font-cinzel text-[9px] text-ash tracking-widest uppercase mb-4">Identity: {resetRole}</p>
+                    <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Enter System Spell</label>
                     <input 
                       value={resetOtp}
-                      onChange={(e) => setResetOtp(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setResetOtp(val);
+                        if (val.length === 6) handleVerifyOtp(val);
+                      }}
                       maxLength={6}
-                      className="w-full bg-void/50 border border-gold/30 rounded px-4 py-3 text-center font-mono tracking-[0.5em] focus:border-gold outline-none"
+                      className="w-full bg-void/50 border border-gold/30 rounded px-4 py-3 text-center font-mono tracking-[0.5em] focus:border-gold outline-none text-xl"
                       placeholder="******"
                       required
                     />
+                    <p className="text-[9px] text-ash/40 uppercase tracking-widest pt-2">Code sent to your inbox</p>
                  </div>
+                 {previewUrl && (
+                    <a href={previewUrl} target="_blank" rel="noreferrer" className="block text-center text-[10px] text-gold/60 hover:text-gold uppercase tracking-widest underline decoration-gold/20">
+                       Check System Terminal
+                    </a>
+                 )}
+                 {error && <div className="text-ember text-[11px] font-mono text-center tracking-tight">{error}</div>}
+                 <button
+                    onClick={() => handleVerifyOtp(resetOtp)}
+                    className="w-full bg-white/5 border border-white/10 py-3 rounded-lg font-cinzel text-[10px] tracking-widest uppercase hover:bg-white/10"
+                  >
+                    Verify Spell
+                  </button>
+               </div>
+            )}
+
+            {resetStep === 'PASSWORD' && (
+               <form onSubmit={handleResetPassword} className="space-y-6">
                  <div className="space-y-2">
-                    <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">New Key</label>
+                    <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">New Identity Key</label>
                     <input 
                       type="password"
                       value={resetNewPassword}
@@ -245,7 +324,7 @@ export function AuthFlow() {
                     />
                  </div>
                  <div className="space-y-2">
-                    <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">Retype New Key</label>
+                    <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">Rewrite New Key</label>
                     <input 
                       type="password"
                       value={resetPasswordRetype}
@@ -256,23 +335,18 @@ export function AuthFlow() {
                       minLength={8}
                     />
                  </div>
-                 {previewUrl && (
-                    <a href={previewUrl} target="_blank" rel="noreferrer" className="block text-center text-[10px] text-ash/40 hover:text-white pb-2 uppercase tracking-widest">
-                       Check Test Email
-                    </a>
-                 )}
                  {error && <div className="text-ember text-[11px] font-mono text-center tracking-tight pb-2">{error}</div>}
                  <button
                     type="submit"
                     className="w-full bg-gold text-void py-4 rounded-lg font-cinzel text-xs tracking-[0.3em] uppercase hover:brightness-110 shadow-[0_0_15px_rgba(255,179,0,0.2)] transition-all"
                   >
-                    Forge New Key
+                    Reset Identity
                   </button>
                </form>
             )}
 
             <button 
-              onClick={() => { setIsForgotMode(false); setResetEmailSent(false); setError(''); }}
+              onClick={() => { setIsForgotMode(false); setResetStep('EMAIL'); setError(''); }}
               className="w-full font-cinzel text-[10px] tracking-widest text-ash hover:text-white transition-colors uppercase pt-4"
             >
               Back to Login
@@ -289,22 +363,25 @@ export function AuthFlow() {
               {isLogin ? "Don't have an identity? Register" : "Already registered? Login"}
             </button>
 
-          <Link
-            to="/identity"
-            className="font-cinzel text-[9px] tracking-[0.4em] text-ash/40 hover:text-ash transition-colors uppercase"
-          >
-            ← Change Identity
-          </Link>
-        </div>
+            <Link
+              to="/identity"
+              className="font-cinzel text-[9px] tracking-[0.4em] text-ash/40 hover:text-ash transition-colors uppercase"
+            >
+              ← Change Identity
+            </Link>
+          </div>
         )}
       </motion.div>
 
       <Overlay 
         isOpen={overlay.isOpen}
-        onClose={() => setOverlay(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => {
+           if (overlay.onConfirm) overlay.onConfirm();
+           else setOverlay(prev => ({ ...prev, isOpen: false }));
+        }}
         title={overlay.title}
         message={overlay.message}
-        confirmText="Acknowledge"
+        confirmText="Acknowledged"
       />
     </div>
   )

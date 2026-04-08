@@ -75,10 +75,20 @@ router.post('/request-password-reset', async (req, res) => {
   try {
     const { email } = z.object({ email: z.string().email() }).parse(req.body)
     const result = await authService.requestPasswordReset(email)
-    res.json({ success: true, message: 'System spell sent via email', previewUrl: result.previewUrl })
+    res.json(result)
   } catch (err: any) {
     console.error('[Auth:PasswordResetOTP] Error:', err.message || err)
     res.status(400).json({ error: 'Failed to request reset.' })
+  }
+})
+
+router.post('/verify-reset-otp', async (req, res) => {
+  try {
+    const { email, otp } = z.object({ email: z.string().email(), otp: z.string() }).parse(req.body)
+    const valid = await authService.verifyPasswordResetOTP(email, otp)
+    res.json({ success: valid })
+  } catch (err: any) {
+    res.status(400).json({ error: 'Verification failed.' })
   }
 })
 

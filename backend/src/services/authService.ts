@@ -122,7 +122,9 @@ export const authService = {
 
   async requestPasswordReset(email: string) {
     const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) throw new Error('User not found')
+    if (!user) {
+      return { success: false, reason: 'NOT_FOUND' }
+    }
 
     const otp = randomOtp()
     const salt = process.env.SERVER_SALT || ''
@@ -135,7 +137,19 @@ export const authService = {
     })
 
     const previewUrl = await emailService.sendPasswordResetEmail(user.email, otp)
-    return { previewUrl }
+    return { success: true, role: user.role, previewUrl }
+  },
+
+  async verifyPasswordResetOTP(email: string, otp: string) {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user || !user.passwordOtpHash || !user.passwordOtpExpiry) return false
+
+    if (user.passwordOtpExpiry.getTime() < Date.now()) return false
+
+    const salt = process.env.SERVER_SALT || ''
+    const otpHash = sha256Hex(`${otp}||${salt}`)
+
+    return user.passwordOtpHash === otpHash
   },
 
   async resetPassword(email: string, otp: string, newPassword: string) {

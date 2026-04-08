@@ -85,9 +85,15 @@ export const api = {
     })
   },
   async requestPasswordReset(email: string) {
-    return jsonFetch<{ success: true; message: string; previewUrl?: string }>('/api/auth/request-password-reset', {
+    return jsonFetch<{ success: boolean; role?: string; reason?: string; previewUrl?: string }>('/api/auth/request-password-reset', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    })
+  },
+  async verifyResetOtp(params: { email: string; otp: string }) {
+    return jsonFetch<{ success: boolean }>('/api/auth/verify-reset-otp', {
+      method: 'POST',
+      body: JSON.stringify(params),
     })
   },
   async oauthLogin(params: { idToken: string; role: 'VOTER' | 'ADMIN' }) {

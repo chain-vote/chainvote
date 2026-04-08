@@ -36,9 +36,10 @@ export const emailService = {
     const subject = "ChainVote: Forget Password System Spell"
     const content = `
       <div style="font-family: serif; color: #1a1a1a; padding: 20px; border: 1px solid #d4af37; background: #fffcf0;">
-        <h2 style="color: #d4af37;">ChainVote System Spell</h2>
-        <p>A request to reforge your secret key was initiated. Enter this system spell to prove your identity:</p>
+        <h2 style="color: #d4af37;">ChainVote Security Scroll</h2>
+        <p>A request to reforge your secret key was initiated. Enter this system generated code to verify your identity:</p>
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #ff4500; margin: 20px 0;">${otp}</div>
+        <p>Instructions: Return to the Hall of Identity, enter this spell in the box provided, and follow the manifesting sequence to forge a new key.</p>
         <p style="font-size: 10px; color: #ash; margin-top: 20px;">This spell will expire in 10 minutes.</p>
       </div>`
     return this.sendEmail(to, subject, content, "Password Reset Ritual")
