@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  adminer:
+    image: adminer:latest
+    restart: always
+    ports:
+      - 8080:8080
+    volumes:
+      # Map the local Prisma sqlite database to Adminer format if using SQLite
+      - ./backend/prisma:/var/www/html/prisma
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres # Default assuming postgres for production

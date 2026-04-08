@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  // Prisma does not allow env() for provider; keep SQLite for local dev.
+  // For PostgreSQL production, switch this to "postgresql" and run migrations.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Election {
+  id                String   @id @default(uuid())
+  title             String
+  description       String?
+  // status: "DRAFT" | "LIVE" | "ENDED" | "RECALLED" | "VOID_QUORUM"
+  status            String   @default("LIVE")
+  // votingMode: "NORMAL" | "RANKED"
+  votingMode        String   @default("NORMAL")
+  startTime         DateTime
+  endTime           DateTime
+  merkleRoot        String?
+  isWhitelistedOnly Boolean  @default(false)
+  quorumPercent     Int?
+  schemaVersion     Int      @default(1)
+  ringWindowMinutes Int      @default(5)
+  // Atmosphere theme: "void" | "crimson" | "arctic" | "jade" | "ember"
+  atmosphereTheme   String   @default("void")
+  createdAt         DateTime @default(now())
+
+  candidates        Candidate[]
+  votes             Vote[]
+  rankedVotes       RankedVote[]
+  whitelistedVoters WhitelistedVoter[]
+  recall            ElectionRecall?
+  snapshots         MerkleSnapshot[]
+  velocity          VoteVelocity?
+  delegations       Delegation[]
+}
+
+model WhitelistedVoter {
+  id         String   @id @default(uuid())
+  electionId String
+  emailHash  String
+  createdAt  DateTime @default(now())
+  election   Election @relation(fields: [electionId], references: [id])
+
+  @@unique([electionId, emailHash])
+}
+
+model Candidate {
+  id         String   @id @default(uuid())
+  electionId String
+  name       String
+  manifesto  String?
+  createdAt  DateTime @default(now())
+  election   Election @relation(fields: [electionId], references: [id])
+  votes      Vote[]
+}
+
+model Vote {
+  id          String    @id @default(uuid())
+  voterHash   String
+  electionId  String
+  candidateId String
+  timestamp   DateTime  @default(now())
+  voteHash    String
+  prevHash    String?
+  merkleRoot  String?
+  // Ring anonymity grouping bucket
+  ringId      String?
+  // Vote commitment: SHA256(candidateId || nonce)
+  commitment  String?
+  revealNonce String?
+  // Early vote flag (first 25% of election window)
+  isEarlyVote Boolean   @default(false)
+  election    Election  @relation(fields: [electionId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([voterHash, electionId])
+}
+
+// Feature 16: Ranked-Choice Voting
+model RankedVote {
+  id          String   @id @default(uuid())
+  voterHash   String
+  electionId  String
+  // JSON: [{candidateId, rank}]
+  rankings    String
+  timestamp   DateTime @default(now())
+  voteHash    String
+  prevHash    String?
+  isEarlyVote Boolean  @default(false)
+  election    Election @relation(fields: [electionId], references: [id])
+
+  @@unique([voterHash, electionId])
+}
+
+// Feature 1: Delegated Voting
+model Delegation {
+  id            String   @id @default(uuid())
+  electionId    String
+  delegatorHash String
+  delegateHash  String
+  isRevoked     Boolean  @default(false)
+  signedAt      DateTime @default(now())
+  election      Election @relation(fields: [electionId], references: [id])
+
+  @@unique([electionId, delegatorHash])
+}
+
+// Feature 7: Periodic Merkle Snapshots
+model MerkleSnapshot {
+  id         String   @id @default(uuid())
+  electionId String
+  merkleRoot String
+  voteCount  Int
+  snapshotAt DateTime @default(now())
+  election   Election @relation(fields: [electionId], references: [id])
+}
+
+// Feature 19: Cryptographic Election Recall
+model ElectionRecall {
+  id         String   @id @default(uuid())
+  electionId String   @unique
+  reason     String?
+  recalledAt DateTime @default(now())
+  election   Election @relation(fields: [electionId], references: [id])
+}
+
+// Feature 20: Multi-Election Voter Passport
+model VoterPassport {
+  id            String    @id @default(uuid())
+  voterHash     String    @unique
+  electionCount Int       @default(0)
+  firstVoteAt   DateTime?
+  lastVoteAt    DateTime?
+  sigilLevel    Int       @default(1)
+}
+
+// Feature 22 & 25: Vote Velocity Index
+model VoteVelocity {
+  id         String   @id @default(uuid())
+  electionId String   @unique
+  vpm        Float    @default(0)
+  updatedAt  DateTime @default(now())
+  election   Election @relation(fields: [electionId], references: [id])
+}
+
+// Feature 23: Chain Fork Detection
+model ChainForkLog {
+  id           String   @id @default(uuid())
+  electionId   String
+  detectedAt   DateTime @default(now())
+  expectedPrev String
+  receivedPrev String
+}
+
+// Feature 27: Audit Log Merkle Sub-Chain
+model AuditChainLog {
+  id        String   @id @default(uuid())
+  operation String
+  actorId   String?
+  payload   String?
+  // Rolling hash: SHA256(prevHash || operation || payload)
+  hash      String
+  prevHash  String?
+  timestamp DateTime @default(now())
+}
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String
+  role              String    @default("VOTER") // "VOTER" or "ADMIN"
+  voterHash         String?   @unique
+  actionOtpHash     String?
+  actionOtpExpiry   DateTime?
+  passwordOtpHash   String?
+  passwordOtpExpiry DateTime?
+  createdAt         DateTime  @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  operation String
+  table     String
+  recordId  String?
+  dbRole    String
+  timestamp DateTime @default(now())
+}
+
+// Dual Mode Configuration Singleton
+model SystemSettings {
+  id             String   @id @default("global")
+  tallyingMode   String   @default("STANDARD") // "STANDARD" or "FHE"
+  validationMode String   @default("STANDARD") // "STANDARD" or "ZK_SNARK"
+  cryptoMode     String   @default("STANDARD") // "STANDARD" or "POST_QUANTUM"
+  identityMode   String   @default("STANDARD") // "STANDARD" or "W3C_DID"
+  updatedAt      DateTime @updatedAt
+}
+
+// Post-Quantum (Dilithium) Mock Storage
+model PqSignature {
+  id        String   @id @default(uuid())
+  voterHash String   @unique
+  pqPubKey  String
+  createdAt DateTime @default(now())
+}
