@@ -17,18 +17,18 @@ This guide covers deploying the full ChainVote full-stack application natively o
      - **Name**: `chainvote-backend`
      - **Root Directory**: `backend`
      - **Environment**: Node
-     - **Build Command**: `npm install && npx prisma generate && npx prisma db push`
+     - **Build Command**: `npm install && npx prisma generate`
      - **Start Command**: `npm run build && npm start`
    - Go to **Advanced** -> **Add Environment Variables** and add:
      ```env
      DATABASE_URL=postgresql://user:pass@host:5432/chainvote-db
      DB_PROVIDER=postgresql
      JWT_SECRET=your_super_secret_jwt_key
-     FRONTEND_URL=https://chainvote-frontend.onrender.com
-     SMTP_HOST=smtp-relay.brevo.com
-     SMTP_PORT=587
-     SMTP_USER=your_verified_email@domain.com
-     SMTP_PASS=your_smtp_password
+     SERVER_SALT=your_random_cryptographic_salt
+     SMTP_HOST=smtp.gmail.com
+     SMTP_USER=your_email@gmail.com
+     SMTP_PASS=your_gmail_app_password
+     FIREBASE_SERVICE_ACCOUNT_PATH=./firebase-service-account.json
      ```
    - Click **Create Web Service**. Render will build and deploy the backend. Copy its public URL (e.g., `https://chainvote-backend.onrender.com`).
 

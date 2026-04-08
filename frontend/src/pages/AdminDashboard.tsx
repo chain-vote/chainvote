@@ -33,7 +33,8 @@ export function AdminDashboard() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (args: { id: string; otp: string; masterCode: string }) => api.deleteElection(args.id, { otp: args.otp, masterCode: args.masterCode }),
+    mutationFn: ({ id, otp, masterCode }: { id: string; otp: string; masterCode: string }) => 
+      api.deleteElection(id, { otp, masterCode }),
     onSuccess: (data) => {
       ritualChime('success')
       setOverlay({

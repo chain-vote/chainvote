@@ -57,20 +57,23 @@ export const emailService = {
     // 1. Primary Attempt: SMTP Relay (Brevo or Gmail)
     if (smtpHost && smtpUser && smtpPass) {
       try {
-        console.log(`[ChainVote:Email] Attempting SMTP delivery via ${smtpHost}:${smtpPort} for ${context}...`)
+        console.log(`[ChainVote:Email] Attempting SMTP delivery via ${smtpHost}:${smtpPort} (Secure: ${smtpPort === 465}) for ${context}...`)
         const transporter = nodemailer.createTransport({
           host: smtpHost,
           port: smtpPort,
           secure: smtpPort === 465,
           auth: { user: smtpUser, pass: smtpPass },
-          // Render/Cloud environments sometimes need a timeout and TLS flexibility
-          connectionTimeout: 15000, 
-          greetingTimeout: 15000,
+          // Render/Cloud environments need generous timeouts and specific TLS settings
+          connectionTimeout: 20000, 
+          greetingTimeout: 20000,
+          socketTimeout: 20000,
           tls: {
-            rejectUnauthorized: false, // Prevents self-signed cert issues in some cloud relays
+            rejectUnauthorized: false,
+            // Force TLS version if needed
+            minVersion: 'TLSv1.2'
           },
-          logger: process.env.NODE_ENV !== 'production' || !!process.env.DEBUG_EMAIL,
-          debug: process.env.NODE_ENV !== 'production' || !!process.env.DEBUG_EMAIL,
+          logger: !!process.env.DEBUG_EMAIL,
+          debug: !!process.env.DEBUG_EMAIL,
         })
 
         const info = await transporter.sendMail({
