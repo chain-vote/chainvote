@@ -63,15 +63,10 @@ export const emailService = {
           port: smtpPort,
           secure: smtpPort === 465,
           auth: { user: smtpUser, pass: smtpPass },
-          // Render/Cloud environments need generous timeouts and specific TLS settings
-          connectionTimeout: 20000, 
-          greetingTimeout: 20000,
-          socketTimeout: 20000,
-          tls: {
-            rejectUnauthorized: false,
-            // Force TLS version if needed
-            minVersion: 'TLSv1.2'
-          },
+          connectionTimeout: 8000,
+          greetingTimeout: 8000,
+          socketTimeout: 10000,
+          tls: { rejectUnauthorized: false },
           logger: !!process.env.DEBUG_EMAIL,
           debug: !!process.env.DEBUG_EMAIL,
         })
@@ -86,15 +81,44 @@ export const emailService = {
         console.log(`[ChainVote:Email] SMTP SUCCESS (${context}). messageId: ${info.messageId}`)
         return undefined
       } catch (err: any) {
-        console.error(`[ChainVote:Email] SMTP FAILURE (${context}) via ${smtpHost}:`, err?.message || err)
-        console.error(`[ChainVote:Email] Hint: Ensure port ${smtpPort} is open and ${smtpUser} is a verified sender.`)
-        // Fall through to Ethereal
+        console.error(`[ChainVote:Email] SMTP FAILURE (${context}) via ${smtpHost}:${smtpPort}: ${err.message}`)
+        console.warn(`[ChainVote:Email] Hint: If 465 and 587 fail on Render, try port 2525 or verify sender ${smtpUser}.`)
+        
+        if (smtpPass.startsWith('xkeysib-')) {
+          try {
+            console.log(`[ChainVote:Email] Attempting Brevo HTTP API fallback (Bypassing SMTP ports)...`)
+            const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+              method: 'POST',
+              headers: {
+                'accept': 'application/json',
+                'api-key': smtpPass,
+                'content-type': 'application/json'
+              },
+              body: JSON.stringify({
+                sender: { name: "ChainVote Ritual", email: senderEmail },
+                to: [{ email: to }],
+                subject: subject,
+                htmlContent: htmlContent
+              })
+            })
+            
+            if (response.ok) {
+              const data: any = await response.json()
+              console.log(`[ChainVote:Email] Brevo HTTP API Ritual Successful. ID: ${data.messageId}`)
+              return undefined
+            } else {
+              const err = await response.text()
+              console.error(`[ChainVote:Email] Brevo HTTP API FAILED: ${err}`)
+            }
+          } catch (apiErr: any) {
+            console.error(`[ChainVote:Email] Brevo HTTP API Exception: ${apiErr.message}`)
+          }
+        }
       }
     } else {
       console.warn(`[ChainVote:Email] SMTP credentials missing (Host: ${!!smtpHost}, User: ${!!smtpUser}, Pass: ${!!smtpPass}). Skipping primary delivery.`)
     }
 
-    // 2. Production Fallback: Ethereal Mail (Safe for previewing without real SMTP)
     console.log(`[ChainVote:Email] Attempting Ethereal fallback for ${context}...`)
     try {
       const testAccount = await nodemailer.createTestAccount()
