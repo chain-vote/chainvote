@@ -11,11 +11,8 @@ const httpServer = createServer(app)
 export const io = new Server(httpServer, {
   cors: {
     origin: (origin, cb) => {
-      const allowed = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : null
-      if (!origin) return cb(null, true)
-      if (allowed && origin === allowed) return cb(null, true)
-      if (/^http:\/\/localhost:\d+$/.test(origin)) return cb(null, true)
-      return cb(new Error('CORS blocked'), false)
+      // Allowing all origins dynamically
+      return cb(null, true)
     },
     methods: ['GET', 'POST'],
   },
