@@ -33,7 +33,7 @@ export function AdminDashboard() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteElection(id),
+    mutationFn: (args: { id: string; otp: string; masterCode: string }) => api.deleteElection(args.id, { otp: args.otp, masterCode: args.masterCode }),
     onSuccess: (data) => {
       ritualChime('success')
       setOverlay({
@@ -66,7 +66,12 @@ export function AdminDashboard() {
       type: 'confirm',
       onConfirm: () => {
         setOverlay(prev => ({ ...prev, isOpen: false }))
-        deleteMutation.mutate(id)
+        const masterCode = window.prompt("Enter Master Code to authorize node purge:") || '';
+        if (!masterCode) return;
+        const otp = window.prompt("Enter the 6-digit OTP code to complete Dual-Lock Purge:") || '';
+        if (!otp) return;
+        
+        deleteMutation.mutate({ id, otp, masterCode })
       }
     })
   }
