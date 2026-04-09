@@ -6,8 +6,10 @@ import { HashReveal } from './HashReveal'
 import { useAuthStore } from '../../store/authStore'
 import { Overlay } from '../ui/Overlay'
 import { ritualChime } from '../layout/TerminalAtmosphere'
-import { VoterSigil } from '../ui/VoterSigil'
 import { useOtpTimer } from '../../hooks/useOtpTimer'
+import { RitualScroll } from '../ui/RitualScroll'
+import { useQueryClient } from '@tanstack/react-query'
+import { VoterSigil } from '../ui/VoterSigil'
 
 type Stage = 'idle' | 'otp_sent' | 'shrouded_proof' | 'computing' | 'chaining' | 'sealing' | 'confirmed'
 
@@ -23,6 +25,7 @@ export function VoteCeremony({
   const [stage, setStage] = useState<Stage>('idle')
   const [otp, setOtp] = useState('')
   const [zkpProof, setZkpProof] = useState<string | null>(null)
+  const [isScrollOpen, setIsScrollOpen] = useState(false)
   const [result, setResult] = useState<{
     voteHash: string
     prevHash: string
@@ -43,6 +46,7 @@ export function VoteCeremony({
 
   const user = useAuthStore((s) => s.user)
   const voterHash = user?.voterHash
+  const queryClient = useQueryClient()
 
   // Animate sealing dots
   useEffect(() => {
@@ -79,6 +83,7 @@ export function VoteCeremony({
       setResult(data)
       setStage('confirmed')
       ritualChime('success')
+      queryClient.invalidateQueries({ queryKey: ['passport'] })
     },
     onError: (err: any) => {
       setOverlay({
@@ -383,10 +388,33 @@ export function VoteCeremony({
               <CryptoField label="Current Merkle Root" value={result.merkleRoot} />
               <div className="text-center font-cinzel text-[10px] tracking-widest text-ash/40 mt-4 uppercase">Chain Position: #{result.position}</div>
             </div>
+            
             <p className="text-[11px] text-ash/60 text-center font-sans tracking-wide leading-relaxed">
               Your hash is your receipt. It allows you to audit the integrity
               of this election at any time without compromising your anonymity.
             </p>
+
+            <button
+               onClick={() => setIsScrollOpen(true)}
+               className="mt-6 px-10 py-4 bg-gold/10 border border-gold/40 text-gold font-cinzel text-xs tracking-[0.4em] uppercase rounded hover:bg-gold hover:text-void transition-all shadow-[0_0_30px_rgba(212,175,55,0.1)]"
+            >
+              Capture Ritual Scroll
+            </button>
+
+            <RitualScroll 
+               isOpen={isScrollOpen}
+               onClose={() => setIsScrollOpen(false)}
+               type="CERTIFICATE"
+               data={{
+                 voterHash: voterHash || '???',
+                 electionTitle: candidateName,
+                 voteHash: result.voteHash,
+                 prevHash: result.prevHash,
+                 merkleRoot: result.merkleRoot,
+                 position: result.position,
+                 timestamp: new Date().toLocaleString()
+               }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

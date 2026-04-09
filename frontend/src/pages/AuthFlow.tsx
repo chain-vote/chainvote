@@ -44,9 +44,16 @@ export function AuthFlow() {
   const authMutation = useMutation({
     mutationFn: (data: any) => data.isOAuth ? api.oauthLogin(data) : (isLogin ? api.login(data) : api.register({ ...data, role: mode?.toUpperCase() })),
     onSuccess: (data: any) => {
+      const sp = new URLSearchParams(window.location.search)
+      const redirect = sp.get('redirect')
+
       if (data.isOAuth || isLogin) {
         setAuth(data.token, data.user)
-        navigate(isVoter ? '/voter/dashboard' : '/admin/dashboard')
+        if (redirect) {
+          navigate(decodeURIComponent(redirect))
+        } else {
+          navigate(isVoter ? '/voter/dashboard' : '/admin/dashboard')
+        }
       } else {
         setIsLogin(true)
         setError('Registration successful. Please login.')

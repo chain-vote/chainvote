@@ -31,7 +31,11 @@ const checkTimeLock = async (electionId: string) => {
   const election = await prisma.election.findUnique({ where: { id: electionId } })
   if (!election) throw new Error('ELECTION_NOT_FOUND')
   if (election.status === 'RECALLED') throw new Error('ELECTION_RECALLED')
-  if (election.endTime > new Date()) throw new Error('RESULTS_TIME_LOCKED')
+  
+  // Feature: Conditional Audit Visibility
+  if (election.auditVisibility === 'SEALED' && election.endTime > new Date()) {
+    throw new Error('RESULTS_TIME_LOCKED')
+  }
 }
 
 // ─── Normal Vote Cast ─────────────────────────────────────────────────────────
@@ -92,7 +96,7 @@ router.post('/cast', requireVoter, async (req, res) => {
       delegationsCarried: delegations,
     })
   } catch (err: any) {
-    if (err?.code === 'P2002') {
+    if (err?.code === 'P2002' || err.message === 'RITUAL_ALREADY_MANIFESTED') {
       return res.status(409).json({ error: 'You have already cast a vote in this election.' })
     }
     const isZod = err instanceof z.ZodError
@@ -138,7 +142,7 @@ router.post('/cast-ranked', requireVoter, async (req, res) => {
 
     res.json({ success: true, voteHash: result.voteHash, prevHash: result.prevHash })
   } catch (err: any) {
-    if (err?.code === 'P2002') return res.status(409).json({ error: 'You have already voted in this election.' })
+    if (err?.code === 'P2002' || err.message === 'RITUAL_ALREADY_MANIFESTED') return res.status(409).json({ error: 'You have already voted in this election.' })
     const isZod = err instanceof z.ZodError
     return res.status(isZod ? 400 : 500).json({ error: err.message || 'Cast failed' })
   }
@@ -261,8 +265,6 @@ router.get('/chain/:electionId', async (req, res) => {
     const chain = await voteService.getChain(electionId)
     res.json(chain)
   } catch (err: any) {
-    if (err.message === 'RESULTS_TIME_LOCKED') return res.status(403).json({ error: 'Results Time-Locked', message: 'The ledger is currently sealed.' })
-    if (err.message === 'ELECTION_RECALLED') return res.status(403).json({ error: 'Election Recalled', message: 'This election was recalled by the Commissioner.' })
     res.status(400).json({ error: 'Invalid election ID' })
   }
 })

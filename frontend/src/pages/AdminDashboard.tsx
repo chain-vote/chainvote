@@ -58,6 +58,21 @@ export function AdminDashboard() {
     }
   })
 
+  const handleShare = (election: any) => {
+    ritualChime('success')
+    const candidatesStr = election.candidates?.map((c: any) => c.name).join(' vs ') || 'Candidates TBD'
+    const link = `${window.location.origin}/vote?electionId=${election.id}`
+    const message = `Cast your Will in ${election.title} where ${candidatesStr}. Participate in the ritual: ${link}`
+    
+    navigator.clipboard.writeText(message)
+    setOverlay({
+      isOpen: true,
+      title: 'Link Manifested',
+      message: 'The recruitment spell has been captured into your clipboard.',
+      type: 'alert'
+    })
+  }
+
   const handleDelete = (id: string, title: string) => {
     ritualChime('click')
     setOverlay({
@@ -139,10 +154,16 @@ export function AdminDashboard() {
                   </Link>
                    <Link
                     to={`/results?electionId=${election.id}`}
-                    className="font-cinzel text-[10px] tracking-[0.3em] uppercase text-ash hover:text-white transition-colors"
+                    className="font-cinzel text-[10px] tracking-[0.3em] uppercase text-ash hover:text-white transition-colors border-r border-white/10 pr-4"
                   >
                     Results
                   </Link>
+                  <button
+                    onClick={() => handleShare(election)}
+                    className="font-cinzel text-[10px] tracking-[0.3em] uppercase text-gold hover:brightness-125 transition-all"
+                  >
+                    Share
+                  </button>
                   <button
                     onClick={() => handleDelete(election.id, election.title)}
                     className="ml-4 font-cinzel text-[10px] tracking-[0.3em] uppercase text-ember/60 hover:text-ember transition-colors"

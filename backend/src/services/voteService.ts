@@ -14,6 +14,14 @@ export const voteService = {
     electionId: string
     candidateId: string
   }) {
+    // Shared check to prevent double-voting across all providers
+    const existingVote = await prisma.vote.findUnique({
+      where: { voterHash_electionId: { voterHash, electionId } }
+    })
+    if (existingVote) {
+      throw new Error('RITUAL_ALREADY_MANIFESTED')
+    }
+
     if (process.env.DB_PROVIDER === 'postgresql') {
       const vote = await prisma.vote.create({
         data: {
@@ -26,6 +34,10 @@ export const voteService = {
       })
       const computed = await prisma.vote.findUnique({ where: { id: vote.id } })
       await prisma.$executeRaw`SELECT compute_merkle_root(${electionId}::uuid)`
+      
+      // Feature 20: Ensure passport is recorded in PG ritual too
+      await passportService.recordVote(voterHash)
+
       const election = await prisma.election.findUnique({
         where: { id: electionId },
         select: { merkleRoot: true },

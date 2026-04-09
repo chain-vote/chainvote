@@ -11,12 +11,13 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   const { user, token } = useAuthStore()
   const location = useLocation()
 
-  if (!token || !user) {
-    // Redirect to login but save the current location they were trying to go to
-    return <Navigate to="/auth/voter" state={{ from: location }} replace />
+  if (!token) {
+    const loginPath = allowedRole === 'ADMIN' ? '/auth/commissioner' : '/auth/voter'
+    const redirectUrl = encodeURIComponent(window.location.pathname + window.location.search)
+    return <Navigate to={`${loginPath}?redirect=${redirectUrl}`} replace />
   }
 
-  if (allowedRole && user.role !== allowedRole) {
+  if (allowedRole && user?.role !== allowedRole) {
     // If user role doesn't match, redirect to their appropriate dashboard
     const fallback = user.role === 'ADMIN' ? '/admin/dashboard' : '/voter/dashboard'
     return <Navigate to={fallback} replace />

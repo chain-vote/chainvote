@@ -8,6 +8,7 @@ import { TamperDemo } from '../components/audit/TamperDemo'
 import { MerkleTree3D } from '../components/three/MerkleTree3D'
 import { ritualChime } from '../components/layout/TerminalAtmosphere'
 import { BackButton } from '../components/ui/BackButton'
+import { AuditCountdown } from '../components/ui/AuditCountdown'
 
 export function Audit() {
   const [sp] = useSearchParams()
@@ -32,6 +33,12 @@ export function Audit() {
     enabled: !!electionId,
     queryFn: () => api.verifyChain(electionId!),
     refetchInterval: 900,
+  })
+
+  const electionQuery = useQuery({
+    queryKey: ['election', electionId],
+    enabled: !!electionId,
+    queryFn: () => api.getElection(electionId!),
   })
 
   const handleDownloadLedger = async () => {
@@ -90,6 +97,28 @@ export function Audit() {
   }
 
   const votes = chainQuery.data ?? []
+  const election = electionQuery.data
+
+  const isSealed = election?.auditVisibility === 'SEALED' && new Date(election.endTime) > new Date()
+
+  if (electionQuery.isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-gold/20 border-t-gold rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (isSealed) {
+    return (
+      <div className="min-h-screen bg-void">
+         <BackButton fallback="/identity" />
+         <div className="pt-32">
+           <AuditCountdown endTime={election!.endTime} title={election!.title} />
+         </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative min-h-screen">

@@ -27,6 +27,12 @@ export function AdminCreate() {
   const [quorumPercent, setQuorumPercent] = useState<string>('')
   const [durationDays, setDurationDays] = useState<string>('30')
   const [publishAsDraft, setPublishAsDraft] = useState(false)
+  const [auditVisibility, setAuditVisibility] = useState<'OPEN' | 'SEALED'>('OPEN')
+  const [endTime, setEndTime] = useState<string>(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    return d.toISOString().slice(0, 16)
+  })
   const [overlay, setOverlay] = useState<{
     isOpen: boolean
     title: string
@@ -104,8 +110,9 @@ export function AdminCreate() {
       votingMode,
       atmosphereTheme,
       quorumPercent: quorumPercent ? parseInt(quorumPercent) : undefined,
-      durationDays: parseInt(durationDays) || 30,
+      endTime: new Date(endTime).toISOString(),
       publishAsDraft,
+      auditVisibility,
     })
   }
 
@@ -125,32 +132,70 @@ export function AdminCreate() {
         </div>
 
         <form onSubmit={handlePublish} className="space-y-12">
-          {/* Section 1: Core Data */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Election Title</label>
-                <input 
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none"
-                  placeholder="The Eternal Assembly"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Mandate / Description</label>
-                <textarea 
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none h-32 resize-none"
-                  placeholder="Define the purpose of this cryptographic gathering..."
-                  required
-                />
+          {/* Section 1: Core Data & Visibility */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="space-y-8">
+              <div className="space-y-6 p-6 border border-white/5 bg-void/20 rounded-xl">
+                <div className="space-y-2">
+                  <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Election Title</label>
+                  <input 
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none"
+                    placeholder="The Eternal Assembly"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Mandate / Description</label>
+                  <textarea 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none h-32 resize-none"
+                    placeholder="Define the purpose of this cryptographic gathering..."
+                    required
+                  />
+                </div>
               </div>
 
-              {/* Voting Mode — Feature 16 */}
-              <div className="space-y-2">
+              {/* Ritual Parameters */}
+              <div className="space-y-6 p-6 border border-white/5 bg-void/20 rounded-xl">
+                <div className="space-y-2">
+                  <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Audit Visibility Ritual</label>
+                  <div className="flex bg-void/50 rounded-lg p-1 border border-white/5">
+                    {(['OPEN', 'SEALED'] as const).map(m => (
+                      <button
+                        key={m} type="button"
+                        onClick={() => setAuditVisibility(m)}
+                        className={`flex-1 py-1.5 font-cinzel text-[9px] tracking-widest uppercase rounded transition-all ${
+                          auditVisibility === m ? 'bg-gold/20 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]' : 'text-ash/40 hover:text-ash'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-ash/40 font-sans italic">
+                    {auditVisibility === 'OPEN' 
+                      ? 'Nodes are witnessed in real-time as they are forged.' 
+                      : 'The ledger remains shrouded until the manifestation ends.'}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Manifestation End (Seal Breaking)</label>
+                  <input 
+                    type="datetime-local"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none text-ash"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Voting Mode */}
+              <div className="space-y-4">
                 <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Voting Mode</label>
                 <div className="flex gap-3">
                   {(['NORMAL', 'RANKED'] as const).map(m => (
@@ -161,28 +206,7 @@ export function AdminCreate() {
                         votingMode === m ? 'border-gold bg-gold/10 text-gold' : 'border-white/10 text-ash/50 hover:border-white/20'
                       }`}
                     >
-                      {m === 'NORMAL' ? 'Normal' : 'Ranked-Choice (IRV)'}
-                    </button>
-                  ))}
-                </div>
-                {votingMode === 'RANKED' && (
-                  <p className="text-[10px] text-ash/40 font-sans">Voters will rank all candidates. Winner determined by Instant Runoff.</p>
-                )}
-              </div>
-
-              {/* Atmosphere Theme — Feature 12 */}
-              <div className="space-y-2">
-                <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Ritual Theme</label>
-                <div className="flex flex-wrap gap-2">
-                  {(['void', 'crimson', 'arctic', 'jade', 'ember'] as const).map(t => (
-                    <button
-                      key={t} type="button"
-                      onClick={() => setAtmosphereTheme(t)}
-                      className={`px-4 py-2 font-cinzel text-[9px] tracking-widest uppercase rounded border transition-all capitalize ${
-                        atmosphereTheme === t ? 'border-gold bg-gold/10 text-gold' : 'border-white/10 text-ash/40 hover:border-white/20'
-                      }`}
-                    >
-                      {t}
+                      {m === 'NORMAL' ? 'Normal' : 'Ranked'}
                     </button>
                   ))}
                 </div>
@@ -201,14 +225,21 @@ export function AdminCreate() {
                   + Add Path
                 </button>
               </div>
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {candidates.map((c, i) => (
-                  <div key={i} className="space-y-2 p-4 border border-white/5 bg-void/20 rounded-lg">
+                  <div key={i} className="space-y-2 p-4 border border-white/5 bg-void/20 rounded-xl relative group">
+                    <button 
+                      type="button"
+                      onClick={() => setCandidates(candidates.filter((_, idx) => idx !== i))}
+                      className="absolute top-2 right-2 text-[10px] text-ash/20 hover:text-ember opacity-0 group-hover:opacity-100 transition-all font-sans"
+                    >
+                      ✕
+                    </button>
                     <input 
                       value={c.name}
                       onChange={(e) => handleCandidateChange(i, 'name', e.target.value)}
                       placeholder={`Candidate ${i + 1} Name`}
-                      className="w-full bg-transparent text-sm border-b border-white/10 py-1 focus:border-gold/30 outline-none"
+                      className="w-full bg-transparent text-sm border-b border-white/5 py-1 focus:border-gold/30 outline-none"
                       required
                     />
                     <input 

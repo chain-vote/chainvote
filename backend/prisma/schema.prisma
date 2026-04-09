@@ -28,6 +28,7 @@ model Election {
   // Atmosphere theme: "void" | "crimson" | "arctic" | "jade" | "ember"
   atmosphereTheme   String   @default("void")
   createdAt         DateTime @default(now())
+  auditVisibility   String   @default("OPEN") // "OPEN" or "SEALED"
 
   candidates        Candidate[]
   votes             Vote[]

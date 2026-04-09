@@ -12,7 +12,7 @@ import { useChainSocket } from '../../hooks/useChainSocket'
  * DataFlow: Visualizes particles flowing from child to parent, 
  * symbolizing the "sealing" of truth into the root.
  */
-function DataFlow({ from, to, count = 5 }: { from: [number, number, number], to: [number, number, number], count?: number }) {
+function DataFlow({ from, to, count = 5, color = "#d4af37" }: { from: [number, number, number], to: [number, number, number], count?: number, color?: string }) {
   const points = useMemo(() => new Float32Array(count * 3), [count])
   
   const ref = useRef<THREE.Points>(null)
@@ -21,14 +21,12 @@ function DataFlow({ from, to, count = 5 }: { from: [number, number, number], to:
     const positions = ref.current.geometry.attributes.position.array as Float32Array
     const time = state.clock.elapsedTime
     
-    // Control point for quadratic curve to mimic branches
     const mid = [from[0], (from[1] + to[1]) / 2, to[2]]
 
     for (let i = 0; i < count; i++) {
-        const speed = 0.5 + (i % 3) * 0.2
+        const speed = 0.3 + (i % 3) * 0.1
         const t = (time * speed + (i / count)) % 1
         
-        // Quadratic Bezier Formula: (1-t)^2 P0 + 2(1-t)t P1 + t^2 P2
         const outT = 1 - t
         const a = outT * outT
         const b = 2 * outT * t
@@ -46,8 +44,31 @@ function DataFlow({ from, to, count = 5 }: { from: [number, number, number], to:
        <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={count} array={points} itemSize={3} />
        </bufferGeometry>
-       <PointMaterial transparent color="#d4af37" size={0.06} sizeAttenuation={true} depthWrite={false} blending={THREE.AdditiveBlending} />
+       <PointMaterial transparent color={color} size={0.08} sizeAttenuation={true} depthWrite={false} blending={THREE.AdditiveBlending} />
     </Points>
+  )
+}
+
+function TreeTrunk() {
+  const meshRef = useRef<THREE.Mesh>(null)
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.1
+    }
+  })
+
+  return (
+    <mesh ref={meshRef} position={[0, 0, 0]}>
+      <cylinderGeometry args={[0.05, 0.4, 7, 32, 1, true]} />
+      <meshStandardMaterial 
+        color="#d4af37" 
+        emissive="#d4af37" 
+        emissiveIntensity={0.5} 
+        transparent 
+        opacity={0.15} 
+        wireframe 
+      />
+    </mesh>
   )
 }
 
@@ -112,19 +133,29 @@ function MerkleNode({
             color={color}
             emissive={color}
             emissiveIntensity={1}
-            roughness={0.2}
-            metalness={0.8}
+            roughness={0.1}
+            metalness={0.9}
             wireframe={hovered}
           />
         </mesh>
       </Float>
       
-      {clicked && (
-        <Html distanceFactor={10} position={[0, 0.5, 0]} center zIndexRange={[100, 0]}>
-          <div className="bg-void/90 backdrop-blur-xl border border-gold/40 px-4 py-3 rounded-xl shadow-2xl text-center pointer-events-auto min-w-[200px]">
-            <div className="text-[10px] uppercase tracking-widest text-gold mb-2 font-cinzel">Mystical Node</div>
-            <div className="font-mono text-[9px] text-white/90 break-all leading-tight opacity-70 mb-3">{hash}</div>
-            <button onClick={() => setClicked(false)} className="px-3 py-1 border border-gold/20 hover:bg-gold/10 text-gold text-[9px] uppercase tracking-widest transition-all rounded">Dismiss</button>
+      {(hovered || clicked) && (
+        <Html distanceFactor={10} position={[0, 0.4, 0]} center zIndexRange={[100, 0]}>
+          <div className="bg-void/90 backdrop-blur-xl border border-gold/40 px-4 py-3 rounded-xl shadow-[0_0_30px_rgba(212,175,55,0.2)] text-center pointer-events-auto min-w-[200px]">
+            <div className="text-[10px] uppercase tracking-widest text-gold mb-1 font-cinzel">
+              {isRoot ? 'Ancient Root' : (isLeaf ? 'Ritual Leaf' : 'Astral Node')}
+            </div>
+            <div className="font-mono text-[9px] text-white/90 break-all leading-tight opacity-70 mb-2">{hash}</div>
+            {isLeaf && <div className="text-[8px] text-chaingreen/60 uppercase tracking-widest font-mono">Verified Participation</div>}
+            {clicked && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setClicked(false) }} 
+                className="mt-2 px-3 py-1 border border-gold/20 hover:bg-gold/10 text-gold text-[9px] uppercase tracking-widest transition-all rounded w-full"
+              >
+                Dismiss
+              </button>
+            )}
           </div>
         </Html>
       )}
@@ -200,20 +231,25 @@ export function MerkleTree3D() {
       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} color="#4fc3f7" />
       <pointLight position={[-10, -10, -10]} intensity={1} color="#d4af37" />
 
-      {edges.map((edge, i) => (
-        <group key={i}>
-          <QuadraticBezierLine 
-             start={edge.from} 
-             end={edge.to} 
-             mid={[edge.from[0], (edge.from[1] + edge.to[1]) / 2, edge.to[2]]}
-             color="#d4af37" 
-             lineWidth={2} 
-             transparent 
-             opacity={0.3} 
-          />
-          <DataFlow from={edge.from} to={edge.to} count={4} />
-        </group>
-      ))}
+      <TreeTrunk />
+
+      {edges.map((edge, i) => {
+        const isRootConnection = nodes.find(n => n.position[0] === edge.to[0] && n.position[1] === edge.to[1] && n.position[2] === edge.to[2])?.isRoot
+        return (
+          <group key={i}>
+            <QuadraticBezierLine 
+               start={edge.from} 
+               end={edge.to} 
+               mid={[edge.from[0] * 1.2, (edge.from[1] + edge.to[1]) / 2, edge.from[2] * 1.2]}
+               color={isRootConnection ? "#4fc3f7" : "#d4af37"} 
+               lineWidth={1.5} 
+               transparent 
+               opacity={0.25} 
+            />
+            <DataFlow from={edge.from} to={edge.to} count={3} color={isRootConnection ? "#4fc3f7" : "#d4af37"} />
+          </group>
+        )
+      })}
 
       {nodes.map((node) => (
         <MerkleNode
@@ -228,15 +264,15 @@ export function MerkleTree3D() {
         />
       ))}
 
-      <OrbitControls enableZoom={true} enablePan={false} autoRotate autoRotateSpeed={0.5} minDistance={4} maxDistance={15} />
+      <OrbitControls enableZoom={true} enablePan={false} autoRotate autoRotateSpeed={0.3} minDistance={4} maxDistance={20} />
 
       <Suspense fallback={null}>
         <EffectComposer>
           <Bloom
-            intensity={1.5}
-            luminanceThreshold={0.2}
-            luminanceSmoothing={0.9}
-            blendFunction={BlendFunction.ADD}
+            intensity={2}
+            luminanceThreshold={0.1}
+            luminanceSmoothing={1}
+            blendFunction={BlendFunction.SCREEN}
             mipmapBlur
           />
         </EffectComposer>
