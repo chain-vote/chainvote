@@ -32,7 +32,21 @@ function normalizeEmail(email: string): string {
 }
 
 export const authService = {
-  async register({ email, password, role }: { email: string; password: string; role: 'VOTER' | 'ADMIN' }) {
+  async register({ 
+    email, 
+    password, 
+    role, 
+    age, 
+    location, 
+    occupation 
+  }: { 
+    email: string; 
+    password: string; 
+    role: 'VOTER' | 'ADMIN';
+    age?: number;
+    location?: string;
+    occupation?: string;
+  }) {
     const cleanEmail = normalizeEmail(email)
     const passwordHash = await bcrypt.hash(password, 10)
     const salt = process.env.SERVER_SALT || ''
@@ -46,6 +60,9 @@ export const authService = {
         passwordHash,
         role,
         voterHash,
+        age,
+        location,
+        occupation,
       },
     })
 
@@ -183,7 +200,19 @@ export const authService = {
     return true
   },
 
-  async oauthLogin({ idToken, requestedRole }: { idToken: string; requestedRole: 'VOTER' | 'ADMIN' }) {
+  async oauthLogin({ 
+    idToken, 
+    requestedRole,
+    age,
+    location,
+    occupation
+  }: { 
+    idToken: string; 
+    requestedRole: 'VOTER' | 'ADMIN';
+    age?: number;
+    location?: string;
+    occupation?: string;
+  }) {
     try {
       if (!admin.apps.length) throw new Error('Firebase Admin not initialized. Ensure FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH is set.')
       
@@ -202,7 +231,10 @@ export const authService = {
              email: cleanEmail,
              passwordHash: 'OAUTH_PROVIDER',
              role: requestedRole,
-             voterHash
+             voterHash,
+             age,
+             location,
+             occupation,
            }
          })
          await emailService.sendWelcomeEmail(user.email, user.role)

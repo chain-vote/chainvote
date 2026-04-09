@@ -17,6 +17,9 @@ export function AuthFlow() {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [age, setAge] = useState<string>('')
+  const [location, setLocation] = useState('')
+  const [occupation, setOccupation] = useState('')
   const [error, setError] = useState('')
   
   const [isForgotMode, setIsForgotMode] = useState(false)
@@ -74,7 +77,10 @@ export function AuthFlow() {
     authMutation.mutate({ 
       email, 
       password, 
-      role: mode?.toUpperCase() as 'VOTER' | 'ADMIN' 
+      role: mode?.toUpperCase() as 'VOTER' | 'ADMIN',
+      age: age ? parseInt(age) : undefined,
+      location,
+      occupation
     })
   }
 
@@ -221,6 +227,44 @@ export function AuthFlow() {
                 required
               />
             </div>
+
+            {!isLogin && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">Age</label>
+                  <input 
+                    type="number"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-gold/30 transition-colors placeholder:text-ash/20"
+                    placeholder="25"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">Location</label>
+                  <input 
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-gold/30 transition-colors placeholder:text-ash/20"
+                    placeholder="London"
+                    required
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="font-cinzel text-[10px] tracking-widest text-ash uppercase ml-1">Occupation</label>
+                  <input 
+                    type="text"
+                    value={occupation}
+                    onChange={(e) => setOccupation(e.target.value)}
+                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-gold/30 transition-colors placeholder:text-ash/20"
+                    placeholder="Mage / Architect"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
             <AnimatePresence>
               {error && (

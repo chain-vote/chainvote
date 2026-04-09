@@ -2,7 +2,7 @@ import { createBrowserRouter, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './lib/api'
 import { App } from './App'
-import { Landing, Identity, AuthFlow, Vote, Audit, Results, AdminDashboard, AdminCreate, VoterDashboard, About } from './pages'
+import { Landing, Identity, AuthFlow, Vote, Audit, Results, AdminDashboard, AdminCreate, VoterDashboard, About, ElectionAnalytics } from './pages'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { VerifyReceipt } from './pages/VerifyReceipt'
 import { HallOfSilence } from './pages/HallOfSilence'
@@ -30,6 +30,7 @@ export const router = createBrowserRouter([
 
       { path: 'admin/dashboard', element: <ProtectedRoute allowedRole="ADMIN"><AdminDashboard /></ProtectedRoute> },
       { path: 'admin/create', element: <ProtectedRoute allowedRole="ADMIN"><AdminCreate /></ProtectedRoute> },
+      { path: 'admin/analytics', element: <ProtectedRoute allowedRole="ADMIN"><ElectionAnalytics /></ProtectedRoute> },
       { path: 'admin/db-engine', element: <ProtectedRoute allowedRole="ADMIN"><DatabaseEngine /></ProtectedRoute> },
     ],
   },

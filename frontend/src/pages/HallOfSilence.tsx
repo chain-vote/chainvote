@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { VoterSigil } from '../components/ui/VoterSigil'
+import { BackButton } from '../components/ui/BackButton'
 
 interface SoulNode {
   hash: string
@@ -33,6 +34,7 @@ export function HallOfSilence({ votes }: { votes: { voteHash: string; voterHash?
 
   return (
     <div className="min-h-screen pt-24 pb-20 px-6">
+      <BackButton fallback="/" />
       <div className="text-center mb-10">
         <h1 className="font-cinzel text-4xl tracking-widest text-white uppercase mb-3">Hall of Silence</h1>
         <p className="font-cinzel text-[10px] tracking-[0.3em] text-ash uppercase">

@@ -3,6 +3,8 @@ import { Navigation } from './components/Navigation'
 import { VoidBackground } from './components/layout/VoidBackground'
 import { TerminalAtmosphere } from './components/layout/TerminalAtmosphere'
 
+import { MusicToggle } from './components/ui/MusicToggle'
+
 export function App() {
   return (
     <div className="relative min-h-screen text-white font-sans overflow-x-hidden selection:bg-ember/30">
@@ -17,6 +19,8 @@ export function App() {
       <main className="relative z-10 w-full min-h-screen pt-20 pb-20">
         <Outlet />
       </main>
+
+      <MusicToggle />
     </div>
   )
 }

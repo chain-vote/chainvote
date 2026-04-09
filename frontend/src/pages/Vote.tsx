@@ -8,6 +8,7 @@ import { useVoteStore } from '../store/voteStore'
 import { CandidateCard } from '../components/voting/CandidateCard'
 import { VoteCeremony } from '../components/voting/VoteCeremony'
 import { MerkleTree3D } from '../components/three/MerkleTree3D'
+import { BackButton } from '../components/ui/BackButton'
 
 export function Vote() {
   const [sp] = useSearchParams()
@@ -59,6 +60,7 @@ export function Vote() {
 
   return (
     <div className="relative min-h-screen">
+      <BackButton fallback="/voter/dashboard" />
       <div className="fixed inset-0 z-0 pointer-events-none">
         <MerkleTree3D />
       </div>

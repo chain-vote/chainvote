@@ -246,4 +246,7 @@ export const api = {
   async getTables() {
     return jsonFetch<{ success: true; tables: string[] }>('/api/admin/db-engine/tables', { headers: authHeaders() })
   },
+  async getAnalytics(electionId: string) {
+    return jsonFetch<{ success: true; analytics: any }>(`/api/admin/elections/${electionId}/analytics`, { headers: authHeaders() })
+  },
 }

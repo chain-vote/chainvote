@@ -7,15 +7,18 @@ const router = Router()
 
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, role } = z
+    const { email, password, role, age, location, occupation } = z
       .object({
         email: z.string().email(),
         password: z.string().min(8),
         role: z.enum(['VOTER', 'ADMIN']),
+        age: z.number().int().optional(),
+        location: z.string().optional(),
+        occupation: z.string().optional(),
       })
       .parse(req.body)
 
-    const user = await authService.register({ email, password, role })
+    const user = await authService.register({ email, password, role, age, location, occupation })
     res.json({ success: true, user })
   } catch (err: any) {
     const isZod = err instanceof z.ZodError
@@ -110,11 +113,17 @@ router.post('/reset-password', async (req, res) => {
 
 router.post('/oauth', async (req, res) => {
   try {
-    const { idToken, role } = z
-      .object({ idToken: z.string(), role: z.enum(['VOTER', 'ADMIN']) })
+    const { idToken, role, age, location, occupation } = z
+      .object({ 
+        idToken: z.string(), 
+        role: z.enum(['VOTER', 'ADMIN']),
+        age: z.number().int().optional(),
+        location: z.string().optional(),
+        occupation: z.string().optional(),
+      })
       .parse(req.body)
 
-    const result = await authService.oauthLogin({ idToken, requestedRole: role })
+    const result = await authService.oauthLogin({ idToken, requestedRole: role, age, location, occupation })
     if (!result.success) {
        if (result.error === 'ROLE_MISMATCH') {
           return res.status(403).json({ 

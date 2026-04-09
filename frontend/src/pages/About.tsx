@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
+import { BackButton } from '../components/ui/BackButton'
 
 export function About() {
   return (
     <div className="min-h-screen pt-32 pb-20 px-6 flex justify-center">
+      <BackButton fallback="/" />
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}

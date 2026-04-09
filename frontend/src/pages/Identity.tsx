@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
+import { BackButton } from '../components/ui/BackButton'
 
 export function Identity() {
   const navigate = useNavigate()
@@ -15,6 +16,7 @@ export function Identity() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <BackButton fallback="/" />
       <motion.h2 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -40,12 +42,6 @@ export function Identity() {
         />
       </div>
 
-      <Link
-        to="/"
-        className="mt-16 font-cinzel text-[10px] tracking-[0.5em] uppercase text-ash hover:text-white transition-colors"
-      >
-        ← Return to Echoes
-      </Link>
     </div>
   )
 }

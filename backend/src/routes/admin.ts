@@ -235,6 +235,64 @@ router.delete('/elections/:id', requireAdmin, async (req, res) => {
   }
 })
 
+// ─── Election Analytics (Feature Upgrade) ──────────────────────────────────
+router.get('/elections/:id/analytics', requireAdmin, async (req, res) => {
+  try {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    
+    // Fetch all votes for this election including candidate name
+    const votes = await prisma.vote.findMany({
+      where: { electionId: id },
+      select: { voterHash: true, candidate: { select: { id: true, name: true } } }
+    })
+
+    // Fetch demographics for these voters
+    const voterHashes = [...new Set(votes.map(v => v.voterHash))]
+    const users = await prisma.user.findMany({
+      where: { voterHash: { in: voterHashes } },
+      select: { voterHash: true, age: true, location: true, occupation: true }
+    })
+
+    const userMap = new Map(users.map(u => [u.voterHash, u]))
+
+    const stats: any = {
+      candidates: {} // candidateId -> { name, demographics }
+    }
+
+    votes.forEach(vote => {
+      const user = userMap.get(vote.voterHash)
+      if (!stats.candidates[vote.candidate.id]) {
+        stats.candidates[vote.candidate.id] = {
+          name: vote.candidate.name,
+          ageBuckets: {},
+          locations: {},
+          occupations: {}
+        }
+      }
+
+      const cStats = stats.candidates[vote.candidate.id]
+
+      // Age Bucket (e.g., 18-25, 26-35, etc.)
+      if (user?.age) {
+        const bucket = `${Math.floor(user.age / 10) * 10}-${Math.floor(user.age / 10) * 10 + 9}`
+        cStats.ageBuckets[bucket] = (cStats.ageBuckets[bucket] || 0) + 1
+      }
+
+      if (user?.location) {
+        cStats.locations[user.location] = (cStats.locations[user.location] || 0) + 1
+      }
+
+      if (user?.occupation) {
+        cStats.occupations[user.occupation] = (cStats.occupations[user.occupation] || 0) + 1
+      }
+    })
+
+    res.json({ success: true, analytics: stats })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 router.get('/elections/:id/export', requireAdmin, async (req, res) => {
   try {
     const election = await prisma.election.findUnique({

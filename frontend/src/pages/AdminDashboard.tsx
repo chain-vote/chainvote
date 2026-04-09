@@ -158,6 +158,12 @@ export function AdminDashboard() {
                   >
                     Results
                   </Link>
+                   <Link
+                    to={`/admin/analytics?electionId=${election.id}`}
+                    className="font-cinzel text-[10px] tracking-[0.3em] uppercase text-gold hover:text-white transition-colors border-r border-white/10 pr-4"
+                  >
+                    Analytics
+                  </Link>
                   <button
                     onClick={() => handleShare(election)}
                     className="font-cinzel text-[10px] tracking-[0.3em] uppercase text-gold hover:brightness-125 transition-all"
