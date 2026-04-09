@@ -36,6 +36,8 @@ export function VoterPassportCard() {
     y.set(0)
   }
 
+  const [isScrollOpen, setIsScrollOpen] = useState(false)
+  
   if (isLoading) {
     return <div className="h-48 w-full md:w-96 rounded-2xl bg-white/5 animate-pulse border border-white/10" />
   }
@@ -43,8 +45,6 @@ export function VoterPassportCard() {
   const hash = passport?.document?.id?.split(':').pop() || passport?.voterHash || passport?.traditionalPassport?.voterHash
   const count = passport?.electionCount || passport?.traditionalPassport?.electionCount || 0
   const level = passport?.sigilLevel || passport?.traditionalPassport?.sigilLevel || 1
-
-  const [isScrollOpen, setIsScrollOpen] = useState(false)
 
   return (
     <>
