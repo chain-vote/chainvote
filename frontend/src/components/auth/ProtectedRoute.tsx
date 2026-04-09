@@ -19,7 +19,7 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
 
   if (allowedRole && user?.role !== allowedRole) {
     // If user role doesn't match, redirect to their appropriate dashboard
-    const fallback = user.role === 'ADMIN' ? '/admin/dashboard' : '/voter/dashboard'
+    const fallback = user?.role === 'ADMIN' ? '/admin/dashboard' : '/voter/dashboard'
     return <Navigate to={fallback} replace />
   }
 

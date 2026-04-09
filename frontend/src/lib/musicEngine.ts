@@ -131,15 +131,21 @@ class MusicEngine {
     const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AC) return false;
 
-    this.ctx = new AC();
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const ctx = new AC() as AudioContext;
+    this.ctx = ctx;
+    if (ctx.state === 'suspended') ctx.resume();
 
-    this.bgmGain = this.ctx.createGain();
-    this.sfxGain = this.ctx.createGain();
-    this.bgmGain.gain.value = 0;
-    this.sfxGain.gain.value = 1;
-    this.bgmGain.connect(this.ctx.destination);
-    this.sfxGain.connect(this.ctx.destination);
+    const bgm = ctx.createGain();
+    const sfx = ctx.createGain();
+    this.bgmGain = bgm;
+    this.sfxGain = sfx;
+
+    bgm.gain.value = 0;
+    sfx.gain.value = 1;
+
+    bgm.connect(ctx.destination);
+    sfx.connect(ctx.destination);
+    
     this.initialized = true;
     return true;
   }
