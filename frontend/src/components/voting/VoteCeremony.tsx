@@ -11,16 +11,22 @@ import { RitualScroll } from '../ui/RitualScroll'
 import { useQueryClient } from '@tanstack/react-query'
 import { VoterSigil } from '../ui/VoterSigil'
 
+import { RankedBallot } from './RankedBallot'
+
 type Stage = 'idle' | 'otp_sent' | 'shrouded_proof' | 'computing' | 'chaining' | 'sealing' | 'confirmed'
 
 export function VoteCeremony({
   candidateId,
   electionId,
   candidateName,
+  isRanked = false,
+  candidates = []
 }: {
   candidateId: string
   electionId: string
   candidateName: string
+  isRanked?: boolean
+  candidates?: any[]
 }) {
   const [stage, setStage] = useState<Stage>('idle')
   const [otp, setOtp] = useState('')
@@ -77,9 +83,13 @@ export function VoteCeremony({
     setPreviewUrl(data.previewUrl ?? null)
   })
 
+  const [rankings, setRankings] = useState<{ candidateId: string; rank: number }[]>([])
+
   const castMutation = useMutation({
-    mutationFn: () => api.castVote({ electionId, candidateId, otp }),
-    onSuccess: (data) => {
+    mutationFn: () => isRanked 
+      ? api.castRankedVote({ electionId, otp, rankings })
+      : api.castVote({ electionId, candidateId, otp }),
+    onSuccess: (data: any) => {
       setResult(data)
       setStage('confirmed')
       ritualChime('success')
@@ -111,6 +121,11 @@ export function VoteCeremony({
     castMutation.mutate()
   }
 
+  const handleRankedConfirm = (newRankings: { candidateId: string; rank: number }[]) => {
+    setRankings(newRankings)
+    otpMutation.mutate()
+  }
+
   return (
     <div className="flex flex-col items-center gap-8 p-4 sm:p-8 w-full max-w-[100vw] overflow-hidden">
       <AnimatePresence mode="wait">
@@ -120,32 +135,41 @@ export function VoteCeremony({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex flex-col items-center gap-6 text-center max-w-2xl"
+            className="flex flex-col items-center gap-6 text-center max-w-2xl w-full"
           >
-            {/* Voter Sigil Identity */}
-            {voterHash && (
-              <div className="flex flex-col items-center gap-2">
-                <VoterSigil hash={voterHash} size={80} />
-                <p className="font-mono text-[8px] text-ash/30 tracking-widest uppercase">Identity Verified</p>
-              </div>
+            {isRanked ? (
+              <RankedBallot 
+                candidates={candidates} 
+                onConfirm={handleRankedConfirm} 
+                disabled={otpMutation.isPending} 
+              />
+            ) : (
+              <>
+                {voterHash && (
+                  <div className="flex flex-col items-center gap-2">
+                    <VoterSigil hash={voterHash} size={80} />
+                    <p className="font-mono text-[8px] text-ash/30 tracking-widest uppercase">Identity Verified</p>
+                  </div>
+                )}
+
+                <h1 className="text-3xl font-cinzel text-gold uppercase tracking-widest">Cast Your Vote</h1>
+                <p className="text-ash text-[10px] font-cinzel tracking-widest uppercase">You are voting for</p>
+                <p className="text-3xl font-cinzel text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">{candidateName}</p>
+                <p className="text-[11px] text-ash max-w-sm leading-relaxed font-sans opacity-60">
+                  Your vote will be cryptographically chained to the ballot. It cannot be altered, deleted, or duplicated.
+                  Authorization via OTP is required.
+                </p>
+
+                <button
+                  onClick={() => otpMutation.mutate()}
+                  disabled={otpMutation.isPending}
+                  className="mt-2 px-10 py-5 bg-gold/10 border border-gold/40 text-gold font-cinzel text-xs tracking-[0.4em] uppercase rounded
+                             hover:bg-gold hover:text-void transition-all duration-300 shadow-[0_0_40px_rgba(255,179,0,0.1)] w-full sm:w-auto"
+                >
+                  {otpMutation.isPending ? 'Summoning OTP...' : 'Request Action OTP'}
+                </button>
+              </>
             )}
-
-            <h1 className="text-3xl font-cinzel text-gold uppercase tracking-widest">Cast Your Vote</h1>
-            <p className="text-ash text-[10px] font-cinzel tracking-widest uppercase">You are voting for</p>
-            <p className="text-3xl font-cinzel text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">{candidateName}</p>
-            <p className="text-[11px] text-ash max-w-sm leading-relaxed font-sans opacity-60">
-              Your vote will be cryptographically chained to the ballot. It cannot be altered, deleted, or duplicated.
-              Authorization via OTP is required.
-            </p>
-
-            <button
-              onClick={() => otpMutation.mutate()}
-              disabled={otpMutation.isPending}
-              className="mt-2 px-10 py-5 bg-gold/10 border border-gold/40 text-gold font-cinzel text-xs tracking-[0.4em] uppercase rounded
-                         hover:bg-gold hover:text-void transition-all duration-300 shadow-[0_0_40px_rgba(255,179,0,0.1)] w-full sm:w-auto"
-            >
-              {otpMutation.isPending ? 'Summoning OTP...' : 'Request Action OTP'}
-            </button>
           </motion.div>
         )}
 

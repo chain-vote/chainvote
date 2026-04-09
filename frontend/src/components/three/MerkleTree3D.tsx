@@ -12,7 +12,7 @@ import { useChainSocket } from '../../hooks/useChainSocket'
  * DataFlow: Visualizes particles flowing from child to parent, 
  * symbolizing the "sealing" of truth into the root.
  */
-function DataFlow({ from, to, count = 5, color = "#d4af37" }: { from: [number, number, number], to: [number, number, number], count?: number, color?: string }) {
+function DataFlow({ from, to, count = 5, color = "#4fc3f7" }: { from: [number, number, number], to: [number, number, number], count?: number, color?: string }) {
   const points = useMemo(() => new Float32Array(count * 3), [count])
   
   const ref = useRef<THREE.Points>(null)
@@ -24,7 +24,7 @@ function DataFlow({ from, to, count = 5, color = "#d4af37" }: { from: [number, n
     const mid = [from[0], (from[1] + to[1]) / 2, to[2]]
 
     for (let i = 0; i < count; i++) {
-        const speed = 0.3 + (i % 3) * 0.1
+        const speed = 0.2 + (i % 3) * 0.05
         const t = (time * speed + (i / count)) % 1
         
         const outT = 1 - t
@@ -44,31 +44,61 @@ function DataFlow({ from, to, count = 5, color = "#d4af37" }: { from: [number, n
        <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={count} array={points} itemSize={3} />
        </bufferGeometry>
-       <PointMaterial transparent color={color} size={0.08} sizeAttenuation={true} depthWrite={false} blending={THREE.AdditiveBlending} />
+       <PointMaterial transparent color={color} size={0.1} sizeAttenuation={true} depthWrite={false} blending={THREE.AdditiveBlending} opacity={0.6} />
     </Points>
   )
 }
 
-function TreeTrunk() {
-  const meshRef = useRef<THREE.Mesh>(null)
+function YggdrasilTrunk() {
+  const groupRef = useRef<THREE.Group>(null)
+  
   useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.1
+    if (groupRef.current) {
+      groupRef.current.rotation.y = state.clock.elapsedTime * 0.05
     }
   })
 
   return (
-    <mesh ref={meshRef} position={[0, 0, 0]}>
-      <cylinderGeometry args={[0.05, 0.4, 7, 32, 1, true]} />
-      <meshStandardMaterial 
-        color="#d4af37" 
-        emissive="#d4af37" 
-        emissiveIntensity={0.5} 
-        transparent 
-        opacity={0.15} 
-        wireframe 
-      />
-    </mesh>
+    <group ref={groupRef}>
+      {/* Central Core */}
+      <mesh position={[0, -1, 0]}>
+        <cylinderGeometry args={[0.02, 0.6, 8, 32, 1, true]} />
+        <meshStandardMaterial 
+          color="#00f2ff" 
+          emissive="#00f2ff" 
+          emissiveIntensity={2} 
+          transparent 
+          opacity={0.1} 
+          wireframe 
+        />
+      </mesh>
+      
+      {/* Entwined Roots */}
+      {[0, 1, 2, 3].map((i) => (
+        <mesh key={i} rotation={[0, (i * Math.PI) / 2, 0.1]} position={[0, -1, 0]}>
+          <cylinderGeometry args={[0.01, 0.3, 8, 16, 1, true]} />
+          <meshStandardMaterial 
+            color="#00ff66" 
+            emissive="#00ff66" 
+            emissiveIntensity={0.5} 
+            transparent 
+            opacity={0.15} 
+            wireframe 
+          />
+        </mesh>
+      ))}
+
+      {/* Spirit Veil */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[4, 32, 32]} />
+        <meshStandardMaterial 
+          color="#4fc3f7" 
+          transparent 
+          opacity={0.03} 
+          side={THREE.BackSide} 
+        />
+      </mesh>
+    </group>
   )
 }
 
@@ -94,66 +124,82 @@ function MerkleNode({
   const [hovered, setHover] = useState(false)
   const [clicked, setClicked] = useState(false)
 
-  const color = isTampered ? '#ff0000' : (!isIntact ? '#ff4500' : (isRoot ? '#4fc3f7' : (isLeaf ? '#00ff66' : '#d4af37')))
+  // Color mapping inspired by Yggdrasil (Bioluminescent Blue/Green/Gold)
+  const baseColor = isTampered ? '#ff0000' : (!isIntact ? '#ff4500' : (isRoot ? '#00f2ff' : (isLeaf ? '#00ff66' : '#d4af37')))
 
   useFrame((state) => {
     if (!meshRef.current || !matRef.current) return
     const t = state.clock.elapsedTime
-    meshRef.current.position.y = position[1] + Math.sin(t * 1.5 + position[0]) * 0.05
+    
+    // Floating animation
+    meshRef.current.position.y = position[1] + Math.sin(t * 1.5 + position[0]) * 0.08
     
     if (isTampered) {
-      meshRef.current.position.x += (Math.random() - 0.5) * 0.08
+      meshRef.current.position.x += (Math.random() - 0.5) * 0.1
     }
 
     if (isNew) {
-      matRef.current.emissiveIntensity = 4 + Math.sin(t * 12) * 2
+      matRef.current.emissiveIntensity = 5 + Math.sin(t * 12) * 3
     } else {
-      matRef.current.emissiveIntensity = hovered ? 3 : (isRoot ? 2 : 1.2)
+      matRef.current.emissiveIntensity = hovered ? 4 : (isRoot ? 2.5 : 1.5)
+    }
+
+    if (hovered) {
+        meshRef.current.scale.setScalar(1.2 + Math.sin(t * 5) * 0.1)
+    } else {
+        meshRef.current.scale.setScalar(1)
     }
   })
 
   return (
     <group position={position}>
-      <Float speed={isNew ? 4 : 1.5} floatIntensity={hovered ? 0.6 : 0.1}>
-        <mesh 
-          ref={meshRef} 
-          onClick={(e) => { e.stopPropagation(); setClicked(!clicked) }}
-          onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer' }}
-          onPointerOut={() => { setHover(false); document.body.style.cursor = 'auto' }}
-        >
-          {isRoot ? (
-             <sphereGeometry args={[0.25, 32, 32]} />
-          ) : isLeaf ? (
-            <icosahedronGeometry args={[0.12, 1]} />
-          ) : (
-            <octahedronGeometry args={[0.1, 0]} />
-          )}
-          <meshStandardMaterial
-            ref={matRef}
-            color={color}
-            emissive={color}
-            emissiveIntensity={1}
-            roughness={0.1}
-            metalness={0.9}
-            wireframe={hovered}
-          />
-        </mesh>
-      </Float>
+      <mesh 
+        ref={meshRef} 
+        onClick={(e) => { e.stopPropagation(); setClicked(!clicked) }}
+        onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer' }}
+        onPointerOut={() => { setHover(false); document.body.style.cursor = 'auto' }}
+      >
+        {isRoot ? (
+           <sphereGeometry args={[0.3, 32, 32]} />
+        ) : isLeaf ? (
+          <dodecahedronGeometry args={[0.15, 0]} />
+        ) : (
+          <octahedronGeometry args={[0.12, 0]} />
+        )}
+        <meshStandardMaterial
+          ref={matRef}
+          color={baseColor}
+          emissive={baseColor}
+          emissiveIntensity={1}
+          roughness={0}
+          metalness={1}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
       
       {(hovered || clicked) && (
-        <Html distanceFactor={10} position={[0, 0.4, 0]} center zIndexRange={[100, 0]}>
-          <div className="bg-void/90 backdrop-blur-xl border border-gold/40 px-4 py-3 rounded-xl shadow-[0_0_30px_rgba(212,175,55,0.2)] text-center pointer-events-auto min-w-[200px]">
-            <div className="text-[10px] uppercase tracking-widest text-gold mb-1 font-cinzel">
-              {isRoot ? 'Ancient Root' : (isLeaf ? 'Ritual Leaf' : 'Astral Node')}
+        <Html distanceFactor={8} position={[0, 0.5, 0]} center zIndexRange={[100, 0]}>
+          <div className="bg-void/95 backdrop-blur-2xl border border-gold/40 px-5 py-4 rounded-2xl shadow-[0_0_40px_rgba(0,242,255,0.2)] text-center pointer-events-auto min-w-[240px] border-l-4 border-l-gold">
+            <div className="text-[10px] uppercase tracking-[0.3em] text-gold mb-2 font-cinzel">
+              {isRoot ? 'Oracle Root' : (isLeaf ? 'Spirit Fruit' : 'Astral Branch')}
             </div>
-            <div className="font-mono text-[9px] text-white/90 break-all leading-tight opacity-70 mb-2">{hash}</div>
-            {isLeaf && <div className="text-[8px] text-chaingreen/60 uppercase tracking-widest font-mono">Verified Participation</div>}
+            <div className="font-mono text-[9px] text-white/90 break-all leading-relaxed opacity-80 mb-3 bg-white/5 p-2 rounded">
+                <span className="text-gold/50 block mb-1 uppercase text-[7px]">Merkle Proof Hash</span>
+                {hash}
+            </div>
+            {isLeaf && (
+                <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="w-1 h-1 rounded-full bg-chaingreen animate-ping" />
+                    <span className="text-[8px] text-chaingreen uppercase tracking-widest font-bold">Verified Manifestation</span>
+                </div>
+            )}
             {clicked && (
               <button 
                 onClick={(e) => { e.stopPropagation(); setClicked(false) }} 
-                className="mt-2 px-3 py-1 border border-gold/20 hover:bg-gold/10 text-gold text-[9px] uppercase tracking-widest transition-all rounded w-full"
+                className="mt-1 px-4 py-2 bg-gold/10 border border-gold/30 hover:bg-gold/20 text-gold text-[9px] uppercase tracking-widest transition-all rounded-lg w-full font-cinzel"
               >
-                Dismiss
+                Dismiss Ledger
               </button>
             )}
           </div>
@@ -182,11 +228,10 @@ export function MerkleTree3D() {
     
     treeStructure.forEach((level, lvlIdx) => {
       // Arrangement: Root at top (Y positive), Leaves at bottom (Y negative)
-      // Level Y: from -2.5 to 2.5
-      const y = totalLevels === 1 ? 0 : (lvlIdx / (totalLevels - 1)) * 5 - 2.5
+      const y = totalLevels === 1 ? 0 : (lvlIdx / (totalLevels - 1)) * 6 - 3
       
       // Horizontal arrangement: Circular for each level
-      const radius = lvlIdx === totalLevels - 1 ? 0 : (totalLevels - 1 - lvlIdx) * 0.8 + 1
+      const radius = lvlIdx === totalLevels - 1 ? 0 : (totalLevels - 1 - lvlIdx) * 1.2 + 1.5
       
       level.forEach((node, nodeIdx) => {
         const angle = level.length === 1 ? 0 : (nodeIdx / level.length) * Math.PI * 2
@@ -207,13 +252,11 @@ export function MerkleTree3D() {
           const parentLevel = treeStructure[lvlIdx + 1]
           const parentIdx = Math.floor(nodeIdx / 2)
           if (parentLevel && parentLevel[parentIdx]) {
-            // Re-calculate parent pos
             const pLevelLen = parentLevel.length
-            const pRadius = lvlIdx + 1 === totalLevels - 1 ? 0 : (totalLevels - 1 - (lvlIdx + 1)) * 0.8 + 1
+            const pRadius = lvlIdx + 1 === totalLevels - 1 ? 0 : (totalLevels - 1 - (lvlIdx + 1)) * 1.2 + 1.5
             const pAngle = pLevelLen === 1 ? 0 : (parentIdx / pLevelLen) * Math.PI * 2
             const px = Math.cos(pAngle) * pRadius
-            const py = (lvlIdx + 1 / (totalLevels - 1)) * 5 - 2.5 // This line was a bit wrong in local var, recalculating correctly in next step
-            const pyCorrect = totalLevels === 1 ? 0 : ((lvlIdx + 1) / (totalLevels - 1)) * 5 - 2.5
+            const pyCorrect = totalLevels === 1 ? 0 : ((lvlIdx + 1) / (totalLevels - 1)) * 6 - 3
             const pz = Math.sin(pAngle) * pRadius
             edges.push({ from: pos, to: [px, pyCorrect, pz] })
           }
@@ -225,58 +268,68 @@ export function MerkleTree3D() {
   }, [treeStructure])
 
   return (
-    <Canvas camera={{ position: [0, 2, 8], fov: 60 }} style={{ background: 'transparent' }}>
-      <fog attach="fog" args={['#060606', 5, 20]} />
-      <ambientLight intensity={0.4} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} color="#4fc3f7" />
-      <pointLight position={[-10, -10, -10]} intensity={1} color="#d4af37" />
+    <div className="w-full h-full">
+      <Canvas camera={{ position: [0, 2, 12], fov: 50 }} style={{ background: 'transparent' }}>
+        <fog attach="fog" args={['#060606', 8, 25]} />
+        <ambientLight intensity={0.5} />
+        <spotLight position={[15, 20, 15]} angle={0.2} penumbra={1} intensity={3} color="#00f2ff" />
+        <pointLight position={[-15, -10, -15]} intensity={1.5} color="#00ff66" />
+        <pointLight position={[0, 0, 5]} intensity={1} color="#d4af37" />
 
-      <TreeTrunk />
+        <YggdrasilTrunk />
 
-      {edges.map((edge, i) => {
-        const isRootConnection = nodes.find(n => n.position[0] === edge.to[0] && n.position[1] === edge.to[1] && n.position[2] === edge.to[2])?.isRoot
-        return (
-          <group key={i}>
-            <QuadraticBezierLine 
-               start={edge.from} 
-               end={edge.to} 
-               mid={[edge.from[0] * 1.2, (edge.from[1] + edge.to[1]) / 2, edge.from[2] * 1.2]}
-               color={isRootConnection ? "#4fc3f7" : "#d4af37"} 
-               lineWidth={1.5} 
-               transparent 
-               opacity={0.25} 
-            />
-            <DataFlow from={edge.from} to={edge.to} count={3} color={isRootConnection ? "#4fc3f7" : "#d4af37"} />
-          </group>
-        )
-      })}
+        {edges.map((edge, i) => {
+          const isRootLevel = nodes.find(n => n.position[0] === edge.to[0] && n.position[1] === edge.to[1] && n.position[2] === edge.to[2])?.isRoot
+          return (
+            <group key={i}>
+              <QuadraticBezierLine 
+                 start={edge.from} 
+                 end={edge.to} 
+                 mid={[edge.from[0] * 1.1, (edge.from[1] + edge.to[1]) / 2, edge.from[2] * 1.1]}
+                 color={isRootLevel ? "#00f2ff" : (edge.from[1] < 0 ? "#00ff66" : "#d4af37")} 
+                 lineWidth={1.2} 
+                 transparent 
+                 opacity={0.3} 
+              />
+              <DataFlow from={edge.from} to={edge.to} count={2} color={isRootLevel ? "#00f2ff" : "#00ff66"} />
+            </group>
+          )
+        })}
 
-      {nodes.map((node) => (
-        <MerkleNode
-          key={node.id}
-          hash={node.hash}
-          position={node.position}
-          isLeaf={node.isLeaf}
-          isRoot={node.isRoot}
-          isIntact={integrityMap[node.hash] !== false}
-          isNew={node.hash === newVoteHash}
-          isTampered={node.voteId === tamperedVoteId}
-        />
-      ))}
-
-      <OrbitControls enableZoom={true} enablePan={false} autoRotate autoRotateSpeed={0.3} minDistance={4} maxDistance={20} />
-
-      <Suspense fallback={null}>
-        <EffectComposer>
-          <Bloom
-            intensity={2}
-            luminanceThreshold={0.1}
-            luminanceSmoothing={1}
-            blendFunction={BlendFunction.SCREEN}
-            mipmapBlur
+        {nodes.map((node) => (
+          <MerkleNode
+            key={node.id}
+            hash={node.hash}
+            position={node.position}
+            isLeaf={node.isLeaf}
+            isRoot={node.isRoot}
+            isIntact={integrityMap[node.hash] !== false}
+            isNew={node.hash === newVoteHash}
+            isTampered={node.voteId === tamperedVoteId}
           />
-        </EffectComposer>
-      </Suspense>
-    </Canvas>
+        ))}
+
+        <OrbitControls 
+          enableZoom={true} 
+          enablePan={false} 
+          autoRotate 
+          autoRotateSpeed={0.4} 
+          minDistance={6} 
+          maxDistance={22} 
+        />
+
+        <Suspense fallback={null}>
+          <EffectComposer>
+            <Bloom
+              intensity={2.5}
+              luminanceThreshold={0.2}
+              luminanceSmoothing={0.9}
+              blendFunction={BlendFunction.SCREEN}
+              mipmapBlur
+            />
+          </EffectComposer>
+        </Suspense>
+      </Canvas>
+    </div>
   )
 }

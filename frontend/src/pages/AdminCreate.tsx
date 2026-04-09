@@ -14,6 +14,7 @@ export function AdminCreate() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [candidates, setCandidates] = useState([{ name: '', manifesto: '' }, { name: '', manifesto: '' }])
+  const [pathCount, setPathCount] = useState('2')
   
   const [otp, setOtp] = useState('')
   const [masterCode, setMasterCode] = useState('')
@@ -42,6 +43,23 @@ export function AdminCreate() {
     title: '',
     message: ''
   })
+
+  // Dynamic Architect Logic
+  const handlePathCountChange = (val: string) => {
+    setPathCount(val)
+    const count = parseInt(val) || 0
+    if (count > 0 && count <= 50) {
+      const next = [...candidates]
+      if (count > next.length) {
+        for (let i = next.length; i < count; i++) {
+          next.push({ name: '', manifesto: '' })
+        }
+      } else {
+        next.splice(count)
+      }
+      setCandidates(next)
+    }
+  }
 
   const otpResend = async () => {
     const data = await api.requestActionOtp()
@@ -80,6 +98,7 @@ export function AdminCreate() {
 
   const handleAddCandidate = () => {
     setCandidates([...candidates, { name: '', manifesto: '' }])
+    setPathCount((candidates.length + 1).toString())
   }
 
   const handleCandidateChange = (idx: number, field: string, val: string) => {
@@ -102,7 +121,7 @@ export function AdminCreate() {
     publishMutation.mutate({ 
       title, 
       description, 
-      candidates, 
+      candidates: candidates.filter(c => c.name.trim() !== ''), 
       otp, 
       masterCode,
       isWhitelistedOnly,
@@ -213,14 +232,26 @@ export function AdminCreate() {
               </div>
             </div>
 
-            {/* Section 2: Candidates */}
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Candidates / Paths</label>
+                <div className="space-y-1">
+                  <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Candidates / Paths</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-ash/40 uppercase font-mono">Count:</span>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="50"
+                      value={pathCount}
+                      onChange={(e) => handlePathCountChange(e.target.value)}
+                      className="w-12 bg-void/50 border border-white/10 rounded px-2 py-1 text-[10px] text-gold focus:border-gold outline-none font-mono"
+                    />
+                  </div>
+                </div>
                 <button 
                   type="button"
                   onClick={handleAddCandidate}
-                  className="font-cinzel text-[9px] text-gold hover:text-white transition-colors uppercase tracking-widest"
+                  className="font-cinzel text-[9px] text-gold hover:text-white transition-colors uppercase tracking-widest bg-gold/5 px-3 py-1.5 border border-gold/10 rounded hover:bg-gold/10"
                 >
                   + Add Path
                 </button>

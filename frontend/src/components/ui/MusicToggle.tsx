@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { musicEngine } from '../../lib/musicEngine'
 
 export function MusicToggle() {
@@ -22,56 +22,38 @@ export function MusicToggle() {
     return () => window.removeEventListener('click', initMusic)
   }, [isMuted])
 
-  const toggleMute = () => {
-    const next = !isMuted
-    setIsMuted(next)
-    musicEngine.setMuted(next)
-    localStorage.setItem('chainvote_music_muted', String(next))
-  }
-
   if (!isVisible) return null
 
   return (
-    <motion.div 
+    <motion.button
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="fixed bottom-6 right-6 z-[100]"
+      whileHover={{ scale: 1.1, boxShadow: isMuted ? "0 0 15px rgba(255,179,0,0.2)" : "0 0 30px rgba(255,179,0,0.5)" }}
+      whileTap={{ scale: 0.95 }}
+      onClick={() => {
+        const next = !isMuted
+        setIsMuted(next)
+        musicEngine.setMuted(next)
+        localStorage.setItem('chainvote_music_muted', String(next))
+      }}
+      className={`fixed bottom-8 right-8 z-[100] flex items-center gap-3 px-6 py-3 rounded-full border-2 backdrop-blur-xl transition-all font-cinzel text-[11px] tracking-[0.3em] uppercase
+        ${isMuted 
+          ? 'bg-void/40 border-gold/20 text-ash/60 opacity-60 hover:opacity-100 hover:border-gold/40' 
+          : 'bg-gold/10 border-gold/60 text-gold shadow-[0_0_25px_rgba(212,175,55,0.2)]'}`}
     >
-      <button
-        onClick={toggleMute}
-        className={`relative group p-3 rounded-full border transition-all duration-500 ${
-          isMuted ? 'border-white/10 bg-void/50' : 'border-gold/40 bg-gold/10 shadow-[0_0_20px_rgba(255,179,0,0.2)]'
-        }`}
-        title={isMuted ? "Awaken the Harmonies" : "Silence the Celestial BGM"}
-      >
-         <div className="relative z-10">
-           {isMuted ? (
-             <span className="text-ash/40 group-hover:text-ash transition-colors">🔇</span>
-           ) : (
-             <motion.span 
-               animate={{ rotate: [0, 5, -5, 0] }}
-               transition={{ repeat: Infinity, duration: 2 }}
-               className="text-gold block"
-             >
-               ⚡
-             </motion.span>
-           )}
-         </div>
-         
-         <AnimatePresence>
-           {!isMuted && (
-             <motion.div 
-               initial={{ opacity: 0, scale: 1 }}
-               animate={{ opacity: [0.2, 0.4, 0.2], scale: [1, 1.4, 1] }}
-               className="absolute inset-0 bg-gold/20 rounded-full blur-md"
-             />
-           )}
-         </AnimatePresence>
-
-         <div className="absolute bottom-full right-0 mb-4 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap bg-void/80 backdrop-blur-md border border-white/5 px-3 py-1.5 rounded-lg text-[8px] font-cinzel tracking-widest text-gold uppercase">
-            BGM: Harry Potter
-         </div>
-      </button>
-    </motion.div>
+      <div className="relative flex items-center justify-center">
+        <span className="text-lg relative z-10">
+          {isMuted ? '⚡' : '🔥'}
+        </span>
+        {!isMuted && (
+          <motion.span
+            animate={{ scale: [1, 1.8, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute inset-0 bg-gold/40 rounded-full blur-md"
+          />
+        )}
+      </div>
+      <span>{isMuted ? 'Manifest Hum' : 'Silence Hum'}</span>
+    </motion.button>
   )
 }
