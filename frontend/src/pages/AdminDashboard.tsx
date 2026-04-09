@@ -138,12 +138,29 @@ export function AdminDashboard() {
                 transition={{ delay: idx * 0.1 }}
                 className="group flex flex-col md:flex-row md:items-center justify-between gap-6 bg-void/30 backdrop-blur-md border border-white/10 p-8 rounded-xl hover:border-gold/30 transition-all relative overflow-hidden"
               >
-                <div>
-                  <h3 className="font-cinzel text-lg text-white tracking-widest mb-1 group-hover:text-gold transition-colors">{election.title}</h3>
-                  <div className="font-mono text-[9px] text-ash/40 uppercase tracking-tighter break-all max-w-md">
-                    ID: {election.id}
+                  <div className="absolute top-0 right-0 px-3 py-1 bg-white/5 border-l border-b border-white/10 flex items-center gap-3">
+                    {election.creatorId === user?.id && (
+                       <span className="font-cinzel text-[7px] text-chaingreen tracking-widest uppercase opacity-70">
+                         Soul Creator
+                       </span>
+                    )}
+                    {election.isWhitelistedOnly ? (
+                      <span className="bg-ember/10 text-ember text-[7px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
+                        Whitelist Radius
+                      </span>
+                    ) : (
+                      <span className="bg-gold/10 text-gold text-[7px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
+                        Public Ballot
+                      </span>
+                    )}
                   </div>
-                </div>
+                  
+                  <div>
+                    <h3 className="font-cinzel text-lg text-white tracking-widest mb-1 group-hover:text-gold transition-colors">{election.title}</h3>
+                    <div className="font-mono text-[9px] text-ash/40 uppercase tracking-tighter break-all max-w-md">
+                      ID: {election.id}
+                    </div>
+                  </div>
 
                 <div className="flex items-center gap-4">
                   <Link

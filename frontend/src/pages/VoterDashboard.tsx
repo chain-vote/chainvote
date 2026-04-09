@@ -55,12 +55,23 @@ export function VoterDashboard() {
                 transition={{ delay: idx * 0.1 }}
                 className="group relative bg-void/30 backdrop-blur-md border border-white/10 p-8 rounded-xl hover:border-gold/30 transition-all overflow-hidden"
               >
-                <div className="absolute top-0 right-0 p-4 font-mono text-[9px] text-ash/30 uppercase tracking-tighter">
-                   Relay: Active
-                </div>
-                
-                <h3 className="font-cinzel text-xl text-white tracking-widest mb-3 group-hover:text-gold transition-colors">{election.title}</h3>
-                <p className="text-ash/60 text-sm mb-8 line-clamp-2 italic">"{election.description}"</p>
+                 <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
+                    <div className="font-mono text-[9px] text-ash/30 uppercase tracking-tighter">
+                       Relay: Active
+                    </div>
+                    {election.isWhitelistedOnly ? (
+                      <div className="bg-ember/10 border border-ember/30 text-ember text-[8px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
+                        Whitelist Radius
+                      </div>
+                    ) : (
+                      <div className="bg-gold/10 border border-gold/30 text-gold text-[8px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
+                        Public Ballot
+                      </div>
+                    )}
+                 </div>
+                 
+                 <h3 className="font-cinzel text-xl text-white tracking-widest mb-3 group-hover:text-gold transition-colors">{election.title}</h3>
+                 <p className="text-ash/60 text-sm mb-8 line-clamp-2 italic">"{election.description}"</p>
                 
                 <div className="flex justify-between items-center">
                   <div className="text-[10px] font-mono text-ash uppercase">

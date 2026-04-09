@@ -1,12 +1,25 @@
 import { prisma } from '../db/prisma'
 
 export const electionsService = {
-  async listActive() {
+  async listActive(currentUser: { id: string; role: string; emailHash?: string }) {
     const now = new Date()
+    
+    // Privacy Matrix Logic:
+    // 1. PUBLIC elections (isWhitelistedOnly: false) are visible to all.
+    // 2. WHITELISTED elections (isWhitelistedOnly: true):
+    //    - Invisible to other Commissioners by default.
+    //    - Visible to the Creator (Admin).
+    //    - Visible to the specific Whitelisted Voters.
+
     return prisma.election.findMany({
       where: {
         startTime: { lte: now },
         endTime: { gte: now },
+        OR: [
+          { isWhitelistedOnly: false },
+          { creatorId: currentUser.id },
+          { isWhitelistedOnly: true, whitelistedVoters: { some: { emailHash: currentUser.emailHash } } }
+        ]
       },
       orderBy: { startTime: 'desc' },
       include: { candidates: true },

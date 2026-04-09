@@ -46,6 +46,29 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
+  try {
+    const token = getBearerToken(req)
+    if (!token) return next()
+
+    const secret = process.env.JWT_SECRET || ''
+    const decoded = jwt.verify(token, secret) as { userId: string; role: string }
+    
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } })
+    if (user) {
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        voterHash: user.voterHash,
+      }
+    }
+    next()
+  } catch {
+    next()
+  }
+}
+
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   await requireAuth(req, res, async () => {
     if (req.user?.role === 'ADMIN') {

@@ -27,6 +27,8 @@ router.post('/elections/create', requireAdmin, async (req, res) => {
       quorumPercent: z.number().int().min(1).max(100).optional(),
       publishAsDraft: z.boolean().optional().default(false),
       durationDays: z.number().int().min(1).optional().default(30),
+      endTime: z.string().datetime().optional(),
+      auditVisibility: z.enum(['OPEN', 'SEALED']).optional().default('OPEN'),
     }).parse(req.body)
 
     const isMasterValid = body.masterCode === MASTER_CODE
@@ -34,6 +36,10 @@ router.post('/elections/create', requireAdmin, async (req, res) => {
     if (!isMasterValid || !isOtpValid) {
       return res.status(401).json({ error: 'Ritual Verification Failed: The provided codes do not match the expected security patterns.' })
     }
+
+    const calculatedEndTime = body.endTime 
+      ? new Date(body.endTime) 
+      : new Date(Date.now() + body.durationDays * 24 * 60 * 60 * 1000)
 
     const election = await prisma.election.create({
       data: {
@@ -43,9 +49,11 @@ router.post('/elections/create', requireAdmin, async (req, res) => {
         votingMode: body.votingMode,
         atmosphereTheme: body.atmosphereTheme,
         quorumPercent: body.quorumPercent,
+        auditVisibility: body.auditVisibility,
         startTime: new Date(),
-        endTime: new Date(Date.now() + body.durationDays * 24 * 60 * 60 * 1000),
+        endTime: calculatedEndTime,
         isWhitelistedOnly: body.isWhitelistedOnly,
+        creatorId: req.user!.id,
         candidates: { create: body.candidates },
         whitelistedVoters: {
           create: body.whitelistedEmails.map(email => ({

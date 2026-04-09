@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore'
 import { Overlay } from '../components/ui/Overlay'
 import { useOtpTimer } from '../hooks/useOtpTimer'
 import { BackButton } from '../components/ui/BackButton'
+import { ritualChime } from '../components/layout/TerminalAtmosphere'
 
 export function AdminCreate() {
   const navigate = useNavigate()
@@ -107,12 +108,43 @@ export function AdminCreate() {
     setCandidates(next)
   }
 
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {}
+    if (!title.trim()) newErrors.title = "The oracle requires a title to name the ritual."
+    if (!description.trim()) newErrors.description = "A mandate is necessary to guide the souls."
+    if (candidates.filter(c => c.name.trim() !== '').length < 2) {
+      newErrors.candidates = "At least two paths (candidates) must be defined for a valid ritual."
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!validate()) {
+      ritualChime('fail')
+      return
+    }
+
     if (!otpSent) {
       otpMutation.mutate()
       return
     }
+    
+    if (!masterCode) {
+      setErrors(prev => ({ ...prev, masterCode: "The Master Code is required for the Dual-Lock ritual." }))
+      return
+    }
+
+    if (otp.length !== 6) {
+      setErrors(prev => ({ ...prev, otp: "The OTP must be a 6-digit manifest." }))
+      return
+    }
+
     const whitelistedEmails = whitelistedEmailsText
       .split('\n')
       .map(e => e.trim())
@@ -159,21 +191,31 @@ export function AdminCreate() {
                   <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Election Title</label>
                   <input 
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none"
+                    onChange={(e) => {
+                      setTitle(e.target.value)
+                      if (errors.title) setErrors(prev => ({ ...prev, title: '' }))
+                    }}
+                    className={`w-full bg-void/50 border rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none transition-colors ${
+                      errors.title ? 'border-ember/50 shadow-[0_0_10px_rgba(255,100,100,0.1)]' : 'border-white/5'
+                    }`}
                     placeholder="The Eternal Assembly"
-                    required
                   />
+                  {errors.title && <p className="text-[9px] text-ember uppercase tracking-widest mt-1 ml-1">{errors.title}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-cinzel text-[10px] tracking-widest text-gold uppercase">Mandate / Description</label>
                   <textarea 
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full bg-void/50 border border-white/5 rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none h-32 resize-none"
+                    onChange={(e) => {
+                      setDescription(e.target.value)
+                      if (errors.description) setErrors(prev => ({ ...prev, description: '' }))
+                    }}
+                    className={`w-full bg-void/50 border rounded-lg px-4 py-3 text-sm focus:border-gold/30 outline-none h-32 resize-none transition-colors ${
+                      errors.description ? 'border-ember/50 shadow-[0_0_10px_rgba(255,100,100,0.1)]' : 'border-white/5'
+                    }`}
                     placeholder="Define the purpose of this cryptographic gathering..."
-                    required
                   />
+                  {errors.description && <p className="text-[9px] text-ember uppercase tracking-widest mt-1 ml-1">{errors.description}</p>}
                 </div>
               </div>
 
@@ -257,6 +299,7 @@ export function AdminCreate() {
                 </button>
               </div>
               <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {errors.candidates && <p className="text-[9px] text-ember uppercase tracking-widest text-center mb-4">{errors.candidates}</p>}
                 {candidates.map((c, i) => (
                   <div key={i} className="space-y-2 p-4 border border-white/5 bg-void/20 rounded-xl relative group">
                     <button 
@@ -268,10 +311,12 @@ export function AdminCreate() {
                     </button>
                     <input 
                       value={c.name}
-                      onChange={(e) => handleCandidateChange(i, 'name', e.target.value)}
+                      onChange={(e) => {
+                        handleCandidateChange(i, 'name', e.target.value)
+                        if (errors.candidates) setErrors(prev => ({ ...prev, candidates: '' }))
+                      }}
                       placeholder={`Candidate ${i + 1} Name`}
                       className="w-full bg-transparent text-sm border-b border-white/5 py-1 focus:border-gold/30 outline-none"
-                      required
                     />
                     <input 
                       value={c.manifesto}
@@ -376,27 +421,39 @@ export function AdminCreate() {
                     </motion.div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                        <label className="font-cinzel text-[9px] tracking-widest text-ash uppercase">Email OTP</label>
                        <input
                         value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
+                        onChange={(e) => {
+                          setOtp(e.target.value)
+                          if (errors.otp) setErrors(prev => ({ ...prev, otp: '' }))
+                        }}
                         maxLength={6}
                         disabled={otpTimer.isExpired}
-                        className="w-full bg-void/50 border border-gold/30 rounded px-4 py-3 text-center font-mono tracking-[0.5em] focus:border-gold outline-none disabled:opacity-30"
+                        className={`w-full bg-void/50 border rounded px-4 py-3 text-center font-mono tracking-[0.5em] focus:border-gold outline-none disabled:opacity-30 ${
+                          errors.otp ? 'border-ember/50 shadow-[0_0_10px_rgba(255,100,100,0.1)]' : 'border-gold/30'
+                        }`}
                         placeholder="******"
                        />
+                       {errors.otp && <p className="text-[8px] text-ember uppercase tracking-widest mt-1 text-center font-mono">{errors.otp}</p>}
                     </div>
                     <div className="space-y-2">
                        <label className="font-cinzel text-[9px] tracking-widest text-ash uppercase">Master Code</label>
                        <input
                         value={masterCode}
-                        onChange={(e) => setMasterCode(e.target.value)}
+                        onChange={(e) => {
+                          setMasterCode(e.target.value)
+                          if (errors.masterCode) setErrors(prev => ({ ...prev, masterCode: '' }))
+                        }}
                         maxLength={3}
-                        className="w-full bg-void/50 border border-gold/30 rounded px-4 py-3 text-center font-mono tracking-[0.5em] focus:border-gold outline-none"
+                        className={`w-full bg-void/50 border rounded px-4 py-3 text-center font-mono tracking-[0.5em] focus:border-gold outline-none ${
+                          errors.masterCode ? 'border-ember/50 shadow-[0_0_10px_rgba(255,100,100,0.1)]' : 'border-gold/30'
+                        }`}
                         placeholder="***"
                        />
+                       {errors.masterCode && <p className="text-[8px] text-ember uppercase tracking-widest mt-1 text-center font-mono">{errors.masterCode}</p>}
                     </div>
                   </div>
 
