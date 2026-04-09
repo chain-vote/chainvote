@@ -403,12 +403,14 @@ router.post('/db-engine/execute', requireAdmin, async (req, res) => {
     if (typeof query !== 'string') return res.status(400).json({ error: 'Query must be a string' })
 
     const lowerQuery = query.toLowerCase().trim()
+    const isDQL = /^\s*(select|show|pragma|explain|desc|describe|with|values|call|list)\b/i.test(lowerQuery) || lowerQuery.includes('returning');
+    
     let result;
-    if (lowerQuery.startsWith('select') || lowerQuery.startsWith('pragma') || lowerQuery.startsWith('show')) {
+    if (isDQL) {
       result = await prisma.$queryRawUnsafe(query)
     } else {
       result = await prisma.$executeRawUnsafe(query)
-      result = { rowsAffected: result }
+      result = { rowsAffected: result, status: 'Success', timestamp: new Date().toISOString() }
     }
     
     // SQLite BigInt conversion helper

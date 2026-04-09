@@ -163,7 +163,7 @@ export function DatabaseEngine() {
               >
                 <div className="absolute top-0 left-0 w-1 h-full bg-ember/40" />
                 <span className="font-cinzel text-xs text-ember block mb-2 tracking-widest">Ritual Error</span>
-                {error}
+                <div className="whitespace-pre-wrap">{error}</div>
               </motion.div>
             )}
 
@@ -175,13 +175,35 @@ export function DatabaseEngine() {
               >
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-cinzel text-gold text-xs uppercase tracking-widest">Ritual Output</h3>
-                  <span className="text-[9px] font-mono text-ash/30 uppercase">{Array.isArray(result) ? `${result.length} Records Manifested` : 'Operation Log'}</span>
+                  <span className="text-[9px] font-mono text-ash/30 uppercase">
+                    {Array.isArray(result) 
+                      ? `${result.length} Records Manifested` 
+                      : result.rowsAffected !== undefined 
+                        ? `${result.rowsAffected} Rows Affected` 
+                        : 'Operation Logged'}
+                  </span>
                 </div>
                 
                 {Array.isArray(result) ? renderTable(result) : (
-                  <pre className="font-mono text-[11px] text-ash/80 overflow-x-auto p-4 bg-black/30 rounded-lg">
-                    {JSON.stringify(result, null, 2)}
-                  </pre>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                       <div className="p-4 bg-white/5 border border-white/5 rounded-lg">
+                          <div className="text-[8px] text-ash tracking-widest uppercase mb-1">Status</div>
+                          <div className="text-gold font-cinzel text-xs">{result.status || 'OK'}</div>
+                       </div>
+                       <div className="p-4 bg-white/5 border border-white/5 rounded-lg">
+                          <div className="text-[8px] text-ash tracking-widest uppercase mb-1">Affected</div>
+                          <div className="text-white font-mono text-xs">{result.rowsAffected ?? 0}</div>
+                       </div>
+                       <div className="p-4 bg-white/5 border border-white/5 rounded-lg md:col-span-2">
+                          <div className="text-[8px] text-ash tracking-widest uppercase mb-1">Manifested At</div>
+                          <div className="text-ash/60 font-mono text-[10px]">{result.timestamp || new Date().toLocaleString()}</div>
+                       </div>
+                    </div>
+                    <pre className="font-mono text-[11px] text-ash/40 overflow-x-auto p-4 bg-black/30 rounded-lg">
+                      {JSON.stringify(result, null, 2)}
+                    </pre>
+                  </div>
                 )}
               </motion.div>
             )}
