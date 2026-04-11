@@ -28,7 +28,7 @@ export function VoterDashboard() {
         {/* Adaptive Sidebar/Header */}
         <div className={`${isLandscape ? 'w-1/3 sticky top-32 h-fit' : 'w-full mb-12'}`}>
           <motion.div layout className="border-b border-white/5 pb-8 mb-8">
-            <h2 className="font-cinzel text-4xl tracking-widest text-white uppercase mb-2">Active Rituals</h2>
+            <h2 className="font-cinzel text-2xl sm:text-4xl tracking-[0.2em] sm:tracking-[0.3em] text-white uppercase mb-2">Active Rituals</h2>
             <p className="font-cinzel text-[10px] tracking-[0.3em] text-ash uppercase">Identified as: {user?.email}</p>
           </motion.div>
           

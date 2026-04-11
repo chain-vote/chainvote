@@ -106,7 +106,7 @@ export function AdminDashboard() {
         <div className={`${isLandscape ? 'w-2/5 sticky top-32 h-fit space-y-8' : 'w-full space-y-12'}`}>
           <div className="flex justify-between items-end border-b border-white/5 pb-8">
             <div>
-              <h2 className="font-cinzel text-4xl tracking-widest text-gold uppercase mb-2">Command Center</h2>
+              <h2 className="font-cinzel text-2xl sm:text-4xl tracking-[0.2em] sm:tracking-[0.3em] text-gold uppercase mb-2">Command Center</h2>
               <p className="font-cinzel text-[10px] tracking-[0.3em] text-ash uppercase">Commissioner: {user?.email}</p>
             </div>
             {!isLandscape && (

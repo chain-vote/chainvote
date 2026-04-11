@@ -131,7 +131,7 @@ export function Audit() {
         <div className="w-full max-w-6xl">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
             <div>
-              <h1 className="font-cinzel text-4xl text-gold">Audit Explorer</h1>
+              <h1 className="font-cinzel text-2xl sm:text-4xl tracking-[0.2em] text-gold uppercase transition-all">Audit Explorer</h1>
               <p className="mt-2 text-ash text-sm font-sans">
                 Public chain read. Integrity verification. Real-time breach signaling.
               </p>

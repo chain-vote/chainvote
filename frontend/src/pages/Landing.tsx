@@ -23,8 +23,8 @@ export function Landing() {
         transition={{ duration: 1.2, ease: "easeOut" }}
         className="text-center"
       >
-        <div className="mb-8">
-           <h1 className="font-cinzel text-6xl sm:text-8xl tracking-[0.2em] text-white opacity-90 drop-shadow-[0_0_30px_rgba(255,179,0,0.4)]">
+        <div className="mb-8 w-full max-w-full overflow-hidden">
+           <h1 className="font-cinzel text-4xl sm:text-8xl tracking-[0.1em] sm:tracking-[0.2em] text-white opacity-90 drop-shadow-[0_0_30px_rgba(255,179,0,0.4)] transition-all">
              CHAINVOTE
            </h1>
         </div>
