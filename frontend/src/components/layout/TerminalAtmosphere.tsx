@@ -108,13 +108,7 @@ export function TerminalAtmosphere() {
         <div className="absolute inset-0 w-full h-full animate-pulse opacity-10 bg-gold/5" />
       </div>
 
-      {/* 3. Terminal Control: Audio Toggle (Hidden in UI corners) */}
-      <button 
-        onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted) }}
-        className="fixed bottom-4 right-4 z-[1000] p-2 rounded-full border border-gold/20 bg-void/80 text-gold text-[8px] uppercase tracking-widest font-cinzel hover:bg-gold/10 transition-all opacity-40 hover:opacity-100"
-      >
-        {isMuted ? 'Manifest Hum' : 'Silence Void'}
-      </button>
+      {/* 3. Terminal Control: Audio Toggle Purged - Now managed by global MusicToggle */}
 
       {/* Global CSS Filters for Chromatic Aberration */}
       <style>{`
