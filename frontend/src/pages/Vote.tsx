@@ -7,8 +7,9 @@ import { useChainStore } from '../store/chainStore'
 import { useVoteStore } from '../store/voteStore'
 import { CandidateCard } from '../components/voting/CandidateCard'
 import { VoteCeremony } from '../components/voting/VoteCeremony'
-import { MerkleTree3D } from '../components/three/MerkleTree3D'
 import { BackButton } from '../components/ui/BackButton'
+import { useOrientation } from '../hooks/useOrientation'
+import { motion } from 'framer-motion'
 
 export function Vote() {
   const [sp] = useSearchParams()
@@ -16,6 +17,7 @@ export function Vote() {
   const user = useAuthStore((s) => s.user)
   const token = useAuthStore((s) => s.token)
   const voterHash = user?.voterHash
+  const { isLandscape } = useOrientation()
 
   const setElectionId = useChainStore((s) => s.setElectionId)
   const selectedCandidateId = useVoteStore((s) => s.selectedCandidateId)
@@ -59,97 +61,102 @@ export function Vote() {
   }
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen transition-all duration-500">
       <BackButton fallback="/voter/dashboard" />
       <div className="relative z-10 px-6 pt-32 pb-20 pointer-events-auto">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-12 border-b border-white/10">
-            <div>
-              <h1 className="font-cinzel text-5xl text-gold tracking-tight">{electionQuery.data?.title ?? 'Supreme Ballot'}</h1>
-              <p className="mt-4 text-ash/80 text-sm font-sans max-w-2xl leading-relaxed">
-                {electionQuery.data?.description ?? 'The ancient ledger awaits your cryptographic signature.'}
-              </p>
-            </div>
-            <div className="bg-void/40 backdrop-blur-md border border-white/5 p-4 rounded-xl">
-              <div className="text-[9px] tracking-[0.2em] uppercase text-ash/60 font-sans mb-1">Voter Identification</div>
-              <div className="font-mono text-[11px] text-chaingreen/80 break-all w-64 leading-tight">{voterHash}</div>
-            </div>
-          </div>
+        <div className={`mx-auto ${isLandscape ? 'max-w-7xl' : 'max-w-6xl'}`}>
+          
+          <motion.div 
+            layout
+            className={`flex ${isLandscape ? 'flex-row gap-12' : 'flex-col'}`}
+          >
+            {/* Adaptive Header Section */}
+            <div className={`${isLandscape ? 'w-2/5 sticky top-32 h-fit space-y-8' : 'w-full mb-12'}`}>
+              <div className="pb-8 border-b border-white/10">
+                <h1 className="font-cinzel text-4xl lg:text-5xl text-gold tracking-tight">{electionQuery.data?.title ?? 'Supreme Ballot'}</h1>
+                <p className="mt-4 text-ash/80 text-sm font-sans leading-relaxed">
+                  {electionQuery.data?.description ?? 'The ancient ledger awaits your cryptographic signature.'}
+                </p>
+              </div>
+              
+              <div className="bg-void/40 backdrop-blur-md border border-white/5 p-4 rounded-xl">
+                <div className="text-[9px] tracking-[0.2em] uppercase text-ash/60 font-sans mb-1">Voter Identification</div>
+                <div className="font-mono text-[11px] text-chaingreen/80 break-all leading-tight">{voterHash}</div>
+              </div>
 
-          {!selectedCandidate && (
-            <div className={`mt-16 grid gap-8 ${
-              candidates.length === 1 ? 'max-w-md mx-auto grid-cols-1' : 
-              candidates.length === 2 ? 'max-w-4xl mx-auto grid-cols-2' : 
-              'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-            }`}>
-              {candidates.map((c: any) => (
-                <CandidateCard
-                  key={c.id}
-                  name={c.name}
-                  manifesto={c.manifesto}
-                  selected={selectedCandidateId === c.id}
-                  onSelect={() => setSelectedCandidateId(c.id)}
-                />
-              ))}
+              {/* Action Links (Simplified for Sidebar) */}
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to="/voter/dashboard"
+                  className="px-4 py-2 rounded border border-white/10 text-ash font-cinzel text-[9px] tracking-widest uppercase hover:text-white"
+                >
+                  ← Back
+                </Link>
+                {electionId && (
+                  <Link
+                    to={`/audit?electionId=${electionId}`}
+                    className="px-4 py-2 rounded border border-gold/20 bg-gold/5 text-gold font-cinzel text-[9px] tracking-widest uppercase"
+                  >
+                    Audit
+                  </Link>
+                )}
+              </div>
             </div>
-          )}
 
-        {selectedCandidate && electionId && electionQuery.data?.votingMode !== 'RANKED' && (
-          <div className="mt-10 rounded-2xl border border-white/10 bg-void/70 backdrop-blur-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <div className="font-cinzel text-gold tracking-wide">Ceremony</div>
-              <button
-                onClick={() => setSelectedCandidateId(null)}
-                className="text-[11px] font-cinzel tracking-widest uppercase text-ash hover:text-white"
-              >
-                Change candidate
-              </button>
+            {/* Voting Arena */}
+            <div className={`${isLandscape ? 'w-3/5' : 'w-full'}`}>
+              {!selectedCandidate && electionQuery.data?.votingMode !== 'RANKED' && (
+                <div className={`grid gap-6 ${
+                  candidates.length === 1 ? 'max-w-md mx-auto grid-cols-1' : 
+                  isLandscape ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2'
+                }`}>
+                  {candidates.map((c: any) => (
+                    <CandidateCard
+                      key={c.id}
+                      name={c.name}
+                      manifesto={c.manifesto}
+                      selected={selectedCandidateId === c.id}
+                      onSelect={() => setSelectedCandidateId(c.id)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {selectedCandidate && electionId && electionQuery.data?.votingMode !== 'RANKED' && (
+                <div className="rounded-2xl border border-white/10 bg-void/70 backdrop-blur-md">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                    <div className="font-cinzel text-gold tracking-wide">Ceremony</div>
+                    <button
+                      onClick={() => setSelectedCandidateId(null)}
+                      className="text-[11px] font-cinzel tracking-widest uppercase text-ash hover:text-white"
+                    >
+                      Change candidate
+                    </button>
+                  </div>
+                  <VoteCeremony
+                    electionId={electionId}
+                    candidateId={selectedCandidate.id}
+                    candidateName={selectedCandidate.name}
+                  />
+                </div>
+              )}
+
+              {electionQuery.data?.votingMode === 'RANKED' && electionId && !selectedCandidate && (
+                <div className="rounded-2xl border border-white/10 bg-void/70 backdrop-blur-md p-8">
+                  <div className="font-cinzel text-gold tracking-widest uppercase mb-8 text-center text-sm border-b border-gold/10 pb-4">
+                    Ranked Choice Manifestation
+                  </div>
+                  <VoteCeremony
+                     electionId={electionId}
+                     candidateId={candidates[0]?.id || ''}
+                     candidateName="Ranked Ballot"
+                     isRanked={true}
+                     candidates={candidates}
+                  />
+                </div>
+              )}
             </div>
-            <VoteCeremony
-              electionId={electionId}
-              candidateId={selectedCandidate.id}
-              candidateName={selectedCandidate.name}
-            />
-          </div>
-        )}
-
-        {electionQuery.data?.votingMode === 'RANKED' && electionId && !selectedCandidate && (
-          <div className="mt-10 rounded-2xl border border-white/10 bg-void/70 backdrop-blur-md p-8">
-            <div className="font-cinzel text-gold tracking-widest uppercase mb-8 text-center text-sm border-b border-gold/10 pb-4">
-              Ranked Choice Manifestation
-            </div>
-            <VoteCeremony
-               electionId={electionId}
-               candidateId={candidates[0]?.id || ''} // In ranked, the component handles full list
-               candidateName="Ranked Ballot"
-               isRanked={true}
-               candidates={candidates}
-            />
-          </div>
-        )}
-
-          <div className="mt-10 flex items-center gap-3">
-            <Link
-              to="/voter/dashboard"
-              className="px-6 py-2 rounded border border-white/10 text-ash font-cinzel text-[10px] tracking-widest uppercase hover:text-white transition-all"
-            >
-              ← Active Ballots
-            </Link>
-            {electionId && (
-              <Link
-                to={`/audit?electionId=${electionId}`}
-                className="px-6 py-2 rounded border border-white/15 bg-void/50 backdrop-blur text-white/90 font-cinzel text-xs tracking-widest uppercase hover:border-white/30"
-              >
-                Audit Explorer
-              </Link>
-            )}
-            <Link
-              to="/"
-              className="px-6 py-2 rounded border border-white/10 bg-void/50 backdrop-blur text-ash font-cinzel text-xs tracking-widest uppercase hover:border-white/25"
-            >
-              Home
-            </Link>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
