@@ -129,6 +129,14 @@ export function AdminCreate() {
     
     if (!validate()) {
       ritualChime('fail')
+      // Feature: Scroll to the first error found
+      const firstError = Object.keys(errors)[0]
+      const element = document.getElementsByName(firstError)[0] || document.querySelector(`[placeholder*="${firstError}"]`)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
       return
     }
 
@@ -152,7 +160,7 @@ export function AdminCreate() {
       .map(e => e.trim())
       .filter(e => e.includes('@'))
 
-    publishMutation.mutate({ 
+    const payload = { 
       title, 
       description, 
       candidates: candidates.filter(c => c.name.trim() !== ''), 
@@ -166,7 +174,10 @@ export function AdminCreate() {
       endTime: new Date(endTime).toISOString(),
       publishAsDraft,
       auditVisibility,
-    })
+    }
+
+    console.log('[ChainVote] Ritual Manifestation Payload:', payload)
+    publishMutation.mutate(payload)
   }
 
   return (

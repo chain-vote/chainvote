@@ -44,6 +44,7 @@ export const dynamicCodeService = {
     })
 
     if (!entry) return false
+    console.log(`[DynamicCode] Validated and consumed code ${code}`)
 
     // Consume the code
     await prisma.dynamicCode.update({

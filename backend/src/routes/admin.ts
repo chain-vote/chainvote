@@ -13,6 +13,7 @@ const HMAC_SECRET = process.env.HMAC_SECRET || 'chainvote-federation-secret'
 
 // ─── Create Election (Feature 3: DRAFT mode + Feature 12: theme + Feature 16: votingMode + Feature 17: quorum) ───
 router.post('/elections/create', requireAdmin, async (req, res) => {
+  console.log(`[Admin:Create] Ritual Attempt by ${req.user!.email}`)
   try {
     const body = z.object({
       title: z.string().min(1),
@@ -27,7 +28,7 @@ router.post('/elections/create', requireAdmin, async (req, res) => {
       quorumPercent: z.number().int().min(1).max(100).optional(),
       publishAsDraft: z.boolean().optional().default(false),
       durationDays: z.number().int().min(1).optional().default(30),
-      endTime: z.string().datetime().optional(),
+      endTime: z.string().optional(), // Loosened for better compatibility
       auditVisibility: z.enum(['OPEN', 'SEALED']).optional().default('OPEN'),
     }).parse(req.body)
 
@@ -82,6 +83,7 @@ router.post('/elections/create', requireAdmin, async (req, res) => {
 
 // ─── Feature 3: Publish DRAFT → LIVE ──────────────────────────────────────────
 router.post('/elections/:id/publish', requireAdmin, async (req, res) => {
+  console.log(`[Admin:Publish] Reification Attempt for election ${req.params.id}`)
   try {
     const id = z.string().uuid().parse(req.params.id)
     const { otp, masterCode } = z.object({ otp: z.string().length(6), masterCode: z.string() }).parse(req.body)
