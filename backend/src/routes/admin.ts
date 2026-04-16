@@ -4,11 +4,11 @@ import { prisma } from '../db/prisma'
 import { requireAdmin } from '../middleware/auth'
 import { authService } from '../services/authService'
 import { auditChainService } from '../services/auditChainService'
+import { dynamicCodeService } from '../services/dynamicCodeService'
 import crypto from 'crypto'
 
 const router = Router()
 
-const MASTER_CODE = process.env.VITE_ADMIN_KEY || '777'
 const HMAC_SECRET = process.env.HMAC_SECRET || 'chainvote-federation-secret'
 
 // ─── Create Election (Feature 3: DRAFT mode + Feature 12: theme + Feature 16: votingMode + Feature 17: quorum) ───
@@ -31,10 +31,10 @@ router.post('/elections/create', requireAdmin, async (req, res) => {
       auditVisibility: z.enum(['OPEN', 'SEALED']).optional().default('OPEN'),
     }).parse(req.body)
 
-    const isMasterValid = body.masterCode === MASTER_CODE
+    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, body.masterCode)
     const isOtpValid = await authService.verifyActionOTP(req.user!.id, body.otp)
     if (!isMasterValid || !isOtpValid) {
-      return res.status(401).json({ error: 'Ritual Verification Failed: The provided codes do not match the expected security patterns.' })
+      return res.status(401).json({ error: 'Ritual Verification Failed: The provided codes do not match the expected security patterns or have expired.' })
     }
 
     const calculatedEndTime = body.endTime 
@@ -80,7 +80,10 @@ router.post('/elections/:id/publish', requireAdmin, async (req, res) => {
     const id = z.string().uuid().parse(req.params.id)
     const { otp, masterCode } = z.object({ otp: z.string().length(6), masterCode: z.string() }).parse(req.body)
 
-    if (masterCode !== MASTER_CODE || !(await authService.verifyActionOTP(req.user!.id, otp))) {
+    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, masterCode)
+    const isOtpValid = await authService.verifyActionOTP(req.user!.id, otp)
+
+    if (!isMasterValid || !isOtpValid) {
       return res.status(401).json({ error: 'Ritual Verification Failed.' })
     }
 
@@ -107,7 +110,10 @@ router.post('/elections/:id/recall', requireAdmin, async (req, res) => {
       reason: z.string().optional(),
     }).parse(req.body)
 
-    if (masterCode !== MASTER_CODE || !(await authService.verifyActionOTP(req.user!.id, otp))) {
+    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, masterCode)
+    const isOtpValid = await authService.verifyActionOTP(req.user!.id, otp)
+
+    if (!isMasterValid || !isOtpValid) {
       return res.status(401).json({ error: 'Ritual Verification Failed.' })
     }
 
@@ -220,10 +226,10 @@ router.delete('/elections/:id', requireAdmin, async (req, res) => {
       masterCode: z.string(),
     }).parse(req.body)
 
-    const isMasterValid = masterCode === MASTER_CODE
+    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, masterCode)
     const isOtpValid = await authService.verifyActionOTP(req.user!.id, otp)
     if (!isMasterValid || !isOtpValid) {
-      return res.status(401).json({ error: 'Ritual Verification Failed. Missing required dual-lock codes.' })
+      return res.status(401).json({ error: 'Ritual Verification Failed. Missing or invalid dual-lock codes.' })
     }
 
     await prisma.rankedVote.deleteMany({ where: { electionId: id } })
@@ -439,6 +445,56 @@ router.post('/db-engine/execute', requireAdmin, async (req, res) => {
     res.json({ success: true, data: convertBigInt(result) })
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message })
+  }
+})
+
+// ─── Dynamic Code Management ───────────────────────────────────────────────
+router.get('/dynamic-code', requireAdmin, async (req, res) => {
+  try {
+    const { code } = await dynamicCodeService.generateCode(req.user!.id)
+    res.json({ code })
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to manifest dynamic code.' })
+  }
+})
+
+// ─── Commissioner Management (Super Admin Only) ─────────────────────────────
+const requireSuperAdmin = async (req: any, res: any, next: any) => {
+  if (req.user?.email === 'tanaytrivedi24@gmail.com') return next()
+  res.status(403).json({ error: 'Access restricted to the High Architect.' })
+}
+
+router.get('/commissioners/pending', requireAdmin, requireSuperAdmin, async (req, res) => {
+  try {
+    const pending = await prisma.user.findMany({
+      where: { role: 'COMMISSIONER', isVerified: false },
+      select: { id: true, email: true, createdAt: true, location: true, occupation: true }
+    })
+    res.json(pending)
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/commissioners/verify/:id', requireAdmin, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    await prisma.user.update({ where: { id }, data: { isVerified: true } })
+    res.json({ success: true, message: 'Identity verified and added to the high scroll.' })
+  } catch (err: any) {
+    res.status(400).json({ error: 'Failed to verify identity.' })
+  }
+})
+
+router.post('/commissioners/add', requireAdmin, requireSuperAdmin, async (req, res) => {
+  try {
+    const { email, password } = z.object({ email: z.string().email(), password: z.string().min(8) }).parse(req.body)
+    await authService.register({ email, password, role: 'COMMISSIONER', age: 0, location: 'System Generated', occupation: 'Election Commissioner' })
+    // Note: register sets isVerified: false for ECs, so we must approve it immediately or modify register
+    const user = await prisma.user.update({ where: { email }, data: { isVerified: true } })
+    res.json({ success: true, user: { email: user.email, role: user.role } })
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
   }
 })
 

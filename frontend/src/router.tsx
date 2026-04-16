@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { VerifyReceipt } from './pages/VerifyReceipt'
 import { HallOfSilence } from './pages/HallOfSilence'
 import { DatabaseEngine } from './pages/DatabaseEngine'
+import { VerificationPending } from './pages/VerificationPending'
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
 
       // Public utility pages
       { path: 'verify', element: <VerifyReceipt /> },
+      { path: 'verification-pending', element: <VerificationPending /> },
       { path: 'hall/:electionId', element: <HallOfSilenceWrapper /> },
 
       { path: 'vote', element: <ProtectedRoute allowedRole="VOTER"><Vote /></ProtectedRoute> },

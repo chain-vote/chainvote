@@ -5,6 +5,8 @@ import { prisma } from '../db/prisma'
 import { sha256Hex } from '../lib/crypto'
 import { emailService } from './emailService'
 
+const SUPER_ADMIN_EMAIL = 'tanaytrivedi24@gmail.com'
+
 try {
   const accountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
   const accountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
@@ -42,7 +44,7 @@ export const authService = {
   }: { 
     email: string; 
     password: string; 
-    role: 'VOTER' | 'ADMIN';
+    role: 'VOTER' | 'COMMISSIONER' | 'ADMIN';
     age?: number;
     location?: string;
     occupation?: string;
@@ -51,14 +53,20 @@ export const authService = {
     const passwordHash = await bcrypt.hash(password, 10)
     const salt = process.env.SERVER_SALT || ''
     
+    // Super admin check
+    const isSuperAdmin = cleanEmail === SUPER_ADMIN_EMAIL
+    const actualRole = isSuperAdmin ? 'ADMIN' : role
+    const isVerified = isSuperAdmin || actualRole === 'VOTER' // ECs must be verified by admin
+
     // voterHash is used for cryptographic anonymity/identity tie in the Merkle Tree
-    const voterHash = role === 'VOTER' ? sha256Hex(`${cleanEmail}||${salt}||${Date.now()}`) : null
+    const voterHash = actualRole === 'VOTER' ? sha256Hex(`${cleanEmail}||${salt}||${Date.now()}`) : null
 
     const user = await prisma.user.create({
       data: {
         email: cleanEmail,
         passwordHash,
-        role,
+        role: actualRole,
+        isVerified,
         voterHash,
         age,
         location,
@@ -72,10 +80,10 @@ export const authService = {
       console.log(`[ChainVote:Register] Welcome email preview link: ${previewUrl}`)
     }
 
-    return { id: user.id, email: user.email, role: user.role, voterHash: user.voterHash, previewUrl }
+    return { id: user.id, email: user.email, role: user.role, isVerified: user.isVerified, voterHash: user.voterHash, previewUrl }
   },
 
-  async login({ email, password, requestedRole }: { email: string; password: string; requestedRole: 'VOTER' | 'ADMIN' }) {
+  async login({ email, password, requestedRole }: { email: string; password: string; requestedRole: 'VOTER' | 'COMMISSIONER' | 'ADMIN' }) {
     const cleanEmail = normalizeEmail(email)
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } })
     if (!user) return { success: false as const }
@@ -83,7 +91,9 @@ export const authService = {
     const valid = await bcrypt.compare(password, user.passwordHash)
     if (!valid) return { success: false as const }
 
-    if (user.role !== requestedRole) {
+    // If super admin logs in, allow any role requested (or force ADMIN)
+    const isSuperAdmin = cleanEmail === SUPER_ADMIN_EMAIL
+    if (!isSuperAdmin && user.role !== requestedRole) {
       return { success: false as const, error: 'ROLE_MISMATCH', actualRole: user.role }
     }
 
@@ -101,6 +111,7 @@ export const authService = {
         id: user.id,
         email: user.email,
         role: user.role,
+        isVerified: user.isVerified,
         voterHash: user.voterHash,
       },
     }
@@ -208,7 +219,7 @@ export const authService = {
     occupation
   }: { 
     idToken: string; 
-    requestedRole: 'VOTER' | 'ADMIN';
+    requestedRole: 'VOTER' | 'COMMISSIONER' | 'ADMIN';
     age?: number;
     location?: string;
     occupation?: string;
@@ -225,12 +236,17 @@ export const authService = {
       
       if (!user) {
          const salt = process.env.SERVER_SALT || ''
-         const voterHash = requestedRole === 'VOTER' ? sha256Hex(`${cleanEmail}||${salt}||${Date.now()}`) : null
+         const isSuperAdmin = cleanEmail === SUPER_ADMIN_EMAIL
+         const actualRole = isSuperAdmin ? 'ADMIN' : requestedRole
+         const isVerified = isSuperAdmin || actualRole === 'VOTER'
+
+         const voterHash = actualRole === 'VOTER' ? sha256Hex(`${cleanEmail}||${salt}||${Date.now()}`) : null
          user = await prisma.user.create({
            data: {
              email: cleanEmail,
              passwordHash: 'OAUTH_PROVIDER',
-             role: requestedRole,
+             role: actualRole,
+             isVerified,
              voterHash,
              age,
              location,
@@ -239,7 +255,8 @@ export const authService = {
          })
          await emailService.sendWelcomeEmail(user.email, user.role)
       } else {
-         if (user.role !== requestedRole) {
+         const isSuperAdmin = cleanEmail === SUPER_ADMIN_EMAIL
+         if (!isSuperAdmin && user.role !== requestedRole) {
            return { success: false as const, error: 'ROLE_MISMATCH', actualRole: user.role }
          }
       }
@@ -250,7 +267,7 @@ export const authService = {
       return {
         success: true as const,
         token,
-        user: { id: user.id, email: user.email, role: user.role, voterHash: user.voterHash }
+        user: { id: user.id, email: user.email, role: user.role, isVerified: user.isVerified, voterHash: user.voterHash }
       }
     } catch (e: any) {
       return { success: false as const, error: e.message || 'Token verification failed' }

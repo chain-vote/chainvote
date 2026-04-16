@@ -53,13 +53,26 @@ export function AuthFlow() {
       if (data.isOAuth || isLogin) {
         setAuth(data.token, data.user)
         if (redirect) {
-          navigate(decodeURIComponent(redirect))
+          navigate(decodeURIComponent(redirect), { replace: true })
         } else {
-          navigate(isVoter ? '/voter/dashboard' : '/admin/dashboard')
+          const fallback = data.user.role === 'ADMIN' || data.user.role === 'COMMISSIONER' ? '/admin/dashboard' : '/voter/dashboard'
+          navigate(fallback, { replace: true })
         }
       } else {
-        setIsLogin(true)
-        setError('Registration successful. Please login.')
+        if (mode === 'commissioner') {
+          setOverlay({
+             isOpen: true,
+             title: 'Ritual Pending',
+             message: 'Registration successful. Your identity must now be manifested in the physical realm by the High Architect. Please wait for verification before logging in.',
+             onConfirm: () => {
+                setOverlay(prev => ({ ...prev, isOpen: false }))
+                setIsLogin(true)
+             }
+          })
+        } else {
+          setIsLogin(true)
+          setError('Registration successful. Please login.')
+        }
       }
     },
     onError: (err: any) => {
@@ -77,7 +90,7 @@ export function AuthFlow() {
     authMutation.mutate({ 
       email, 
       password, 
-      role: mode?.toUpperCase() as 'VOTER' | 'ADMIN',
+      role: mode?.toUpperCase() as 'VOTER' | 'COMMISSIONER' | 'ADMIN',
       age: age ? parseInt(age) : undefined,
       location,
       occupation
@@ -88,7 +101,7 @@ export function AuthFlow() {
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const idToken = await result.user.getIdToken()
-      authMutation.mutate({ idToken, role: mode?.toUpperCase() as 'VOTER' | 'ADMIN', isOAuth: true })
+      authMutation.mutate({ idToken, role: mode?.toUpperCase() as 'VOTER' | 'COMMISSIONER' | 'ADMIN', isOAuth: true })
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Google Auth interrupted.')

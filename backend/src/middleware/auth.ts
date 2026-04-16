@@ -6,7 +6,7 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      user?: { id: string; email: string; role: string; voterHash: string | null }
+      user?: { id: string; email: string; role: string; isVerified: boolean; voterHash: string | null }
     }
   }
 }
@@ -37,6 +37,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       id: user.id,
       email: user.email,
       role: user.role,
+      isVerified: user.isVerified,
       voterHash: user.voterHash,
     }
     
@@ -60,6 +61,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
         id: user.id,
         email: user.email,
         role: user.role,
+        isVerified: user.isVerified,
         voterHash: user.voterHash,
       }
     }
@@ -71,9 +73,17 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   await requireAuth(req, res, async () => {
-    if (req.user?.role === 'ADMIN') {
+    const isAuthorized = req.user?.role === 'ADMIN' || req.user?.role === 'COMMISSIONER'
+    const isVerified = req.user?.isVerified === true
+
+    if (isAuthorized && isVerified) {
       return next()
     }
+    
+    if (isAuthorized && !isVerified) {
+      return res.status(403).json({ error: 'VERIFICATION_PENDING' })
+    }
+
     return res.status(403).json({ error: 'FORBIDDEN' })
   })
 }

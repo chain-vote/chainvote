@@ -8,6 +8,7 @@ import { Overlay } from '../components/ui/Overlay'
 import { useOtpTimer } from '../hooks/useOtpTimer'
 import { BackButton } from '../components/ui/BackButton'
 import { ritualChime } from '../components/layout/TerminalAtmosphere'
+import { DynamicCodeDisplay } from '../components/auth/DynamicCodeDisplay'
 
 export function AdminCreate() {
   const navigate = useNavigate()
@@ -421,7 +422,9 @@ export function AdminCreate() {
                     </motion.div>
                   )}
 
-                   <div className="grid grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                       <DynamicCodeDisplay />
+                    </div>
                     <div className="space-y-2">
                        <label className="font-cinzel text-[9px] tracking-widest text-ash uppercase">Email OTP</label>
                        <input
@@ -440,11 +443,11 @@ export function AdminCreate() {
                        {errors.otp && <p className="text-[8px] text-ember uppercase tracking-widest mt-1 text-center font-mono">{errors.otp}</p>}
                     </div>
                     <div className="space-y-2">
-                       <label className="font-cinzel text-[9px] tracking-widest text-ash uppercase">Master Code</label>
+                       <label className="font-cinzel text-[9px] tracking-widest text-ash uppercase">Enter Master Code</label>
                        <input
                         value={masterCode}
                         onChange={(e) => {
-                          setMasterCode(e.target.value)
+                          setMasterCode(e.target.value.toUpperCase())
                           if (errors.masterCode) setErrors(prev => ({ ...prev, masterCode: '' }))
                         }}
                         maxLength={3}
@@ -455,7 +458,6 @@ export function AdminCreate() {
                        />
                        {errors.masterCode && <p className="text-[8px] text-ember uppercase tracking-widest mt-1 text-center font-mono">{errors.masterCode}</p>}
                     </div>
-                  </div>
 
                   <div className="text-center">
                     {otpSent && !otpTimer.isExpired && (

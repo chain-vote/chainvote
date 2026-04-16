@@ -9,6 +9,8 @@ import { ritualChime } from '../components/layout/TerminalAtmosphere'
 import { ManifestationHeatmap } from '../components/ui/ManifestationHeatmap'
 import { BackButton } from '../components/ui/BackButton'
 import { useOrientation } from '../hooks/useOrientation'
+import { useOtpTimer } from '../hooks/useOtpTimer'
+import { DynamicCodeDisplay } from '../components/auth/DynamicCodeDisplay'
 
 export function AdminDashboard() {
   const user = useAuthStore((s) => s.user)
@@ -19,7 +21,8 @@ export function AdminDashboard() {
     isOpen: boolean
     title: string
     message: string
-    type: 'alert' | 'confirm'
+    type: 'alert' | 'confirm' | 'delete'
+    electionId?: string
     onConfirm?: () => void
   }>({
     isOpen: false,
@@ -28,10 +31,86 @@ export function AdminDashboard() {
     type: 'alert'
   })
 
+  const [deleteOtp, setDeleteOtp] = useState('')
+  const [deleteMaster, setDeleteMaster] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [showAddEC, setShowAddEC] = useState(false)
+  const [newEC, setNewEC] = useState({ email: '', password: '' })
+
+  const otpResend = async () => {
+    const data = await api.requestActionOtp()
+    setPreviewUrl(data.previewUrl ?? null)
+  }
+
+  const otpTimer = useOtpTimer(otpResend)
+
+  const otpMutation = useMutation({
+    mutationFn: () => api.requestActionOtp(),
+    onSuccess: (data) => {
+      setPreviewUrl(data.previewUrl ?? null)
+      setOtpSent(true)
+      otpTimer.start()
+    },
+    onError: (err: any) => {
+      setOverlay({
+        isOpen: true,
+        title: 'Ritual Interrupted',
+        message: err.message || 'The courier failed to deliver the OTP.',
+        type: 'alert'
+      })
+    }
+  })
+
   const { data: elections, isLoading } = useQuery({
     queryKey: ['elections', 'active'],
-    queryKeyHashFn: () => 'active-elections-admin',
     queryFn: () => api.getActiveElections(),
+  })
+
+  // Super Admin specific query
+  const isSuperAdmin = user?.email === 'tanaytrivedi24@gmail.com'
+  const { data: pendingCommissioners, refetch: refetchPending } = useQuery({
+    queryKey: ['commissioners', 'pending'],
+    queryFn: () => api.getPendingCommissioners(),
+    enabled: isSuperAdmin
+  })
+
+  const verifyCommissionerMutation = useMutation({
+    mutationFn: (id: string) => api.verifyCommissioner(id),
+    onSuccess: () => {
+      ritualChime('success')
+      refetchPending()
+      setOverlay({
+        isOpen: true,
+        title: 'Identity Manifested',
+        message: 'The Commissioner has been successfully verified and added to the official scroll.',
+        type: 'alert'
+      })
+    }
+  })
+
+  const addCommissionerMutation = useMutation({
+    mutationFn: (params: typeof newEC) => api.addCommissioner(params),
+    onSuccess: () => {
+      ritualChime('success')
+      refetchPending()
+      setShowAddEC(false)
+      setNewEC({ email: '', password: '' })
+      setOverlay({
+        isOpen: true,
+        title: 'Commissioner Added',
+        message: 'A new identity has been manually manifested and verified on the scroll.',
+        type: 'alert'
+      })
+    },
+    onError: (err: any) => {
+      setOverlay({
+        isOpen: true,
+        title: 'Manifestation Failed',
+        message: err.message || 'The ritual was rejected by the database.',
+        type: 'alert'
+      })
+    }
   })
 
   const deleteMutation = useMutation({
@@ -77,19 +156,20 @@ export function AdminDashboard() {
 
   const handleDelete = (id: string, title: string) => {
     ritualChime('click')
+    setDeleteOtp('')
+    setDeleteMaster('')
     setOverlay({
       isOpen: true,
       title: 'Initiate Purge',
-      message: `Are you sure you want to purge the "${title}" node? This will erase all candidates and votes associated with it. This action is irreversible on the chain.`,
-      type: 'confirm',
+      message: `You are about to purge the "${title}" node. This will erase all candidates and votes from the ledger.`,
+      type: 'delete',
+      electionId: id,
       onConfirm: () => {
-        setOverlay(prev => ({ ...prev, isOpen: false }))
-        const masterCode = window.prompt("Enter Master Code to authorize node purge:") || '';
-        if (!masterCode) return;
-        const otp = window.prompt("Enter the 6-digit OTP code to complete Dual-Lock Purge:") || '';
-        if (!otp) return;
-        
-        deleteMutation.mutate({ id, otp, masterCode })
+        if (!deleteMaster || deleteOtp.length !== 6) {
+           ritualChime('fail')
+           return
+        }
+        deleteMutation.mutate({ id, otp: deleteOtp, masterCode: deleteMaster })
       }
     })
   }
@@ -138,6 +218,74 @@ export function AdminDashboard() {
             <div className="font-cinzel text-[9px] tracking-[0.5em] text-ash uppercase mb-4">Ether Activity</div>
             <ManifestationHeatmap voteCount={elections?.reduce((acc: number, e: any) => acc + (e._count?.votes ?? 0), 0) ?? 0} />
           </div>
+
+          {/* Super Admin Control: Commissioner Requests */}
+          {isSuperAdmin && pendingCommissioners && pendingCommissioners.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-gold/5 border border-gold/20 p-6 rounded-xl space-y-4"
+            >
+              <div className="font-cinzel text-[10px] tracking-[0.4em] text-gold uppercase mb-2">Pending Identities ({pendingCommissioners.length})</div>
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {pendingCommissioners.map((ec: any) => (
+                  <div key={ec.id} className="border-b border-white/5 pb-4 last:border-0">
+                    <div className="text-white text-xs truncate mb-1">{ec.email}</div>
+                    <div className="text-[9px] text-ash/60 uppercase tracking-widest mb-3">
+                      {ec.location || 'Unknown Realm'} • {ec.occupation || 'Wanderer'}
+                    </div>
+                    <button
+                      onClick={() => verifyCommissionerMutation.mutate(ec.id)}
+                      disabled={verifyCommissionerMutation.isPending}
+                      className="w-full py-2 bg-gold/10 border border-gold/30 text-[9px] font-cinzel tracking-[0.3em] uppercase text-gold hover:bg-gold hover:text-void transition-all disabled:opacity-50"
+                    >
+                      {verifyCommissionerMutation.isPending ? 'Verifying...' : 'Approve Identity'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {!showAddEC ? (
+                <button 
+                  onClick={() => setShowAddEC(true)}
+                  className="w-full py-3 border border-dashed border-gold/30 text-[9px] font-cinzel tracking-[0.3em] uppercase text-ash hover:text-gold hover:bg-gold/5 transition-all"
+                >
+                  + Manually Manifest New Identity
+                </button>
+              ) : (
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <input 
+                    placeholder="Courier Email" 
+                    value={newEC.email}
+                    onChange={(e) => setNewEC(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full bg-void border border-white/10 rounded px-3 py-2 text-xs focus:border-gold outline-none text-ash"
+                  />
+                  <input 
+                    placeholder="Binding Password" 
+                    type="password"
+                    value={newEC.password}
+                    onChange={(e) => setNewEC(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full bg-void border border-white/10 rounded px-3 py-2 text-xs focus:border-gold outline-none text-ash"
+                  />
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setShowAddEC(false)}
+                      className="flex-1 py-2 text-[9px] font-cinzel tracking-widest uppercase text-ash hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => addCommissionerMutation.mutate(newEC)}
+                      disabled={addCommissionerMutation.isPending}
+                      className="flex-1 py-2 bg-gold/20 border border-gold/40 text-[9px] font-cinzel tracking-widest uppercase text-gold hover:bg-gold hover:text-void"
+                    >
+                      {addCommissionerMutation.isPending ? 'Binding...' : 'Manifest'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
 
         {/* Managed Chains Pane */}
@@ -226,9 +374,47 @@ export function AdminDashboard() {
         onConfirm={overlay.onConfirm}
         title={overlay.title}
         message={overlay.message}
-        type={overlay.type}
-        confirmText={overlay.type === 'confirm' ? 'Purge Node' : 'Acknowledge'}
-      />
+        type={overlay.type === 'delete' ? 'confirm' : overlay.type}
+        confirmText={overlay.type === 'delete' ? 'Purge Node' : (overlay.type === 'confirm' ? 'Confirm' : 'Acknowledge')}
+      >
+        {overlay.type === 'delete' && (
+          <div className="space-y-6">
+            <DynamicCodeDisplay />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-cinzel text-ash tracking-widest uppercase">Email OTP</label>
+                <input 
+                  value={deleteOtp}
+                  onChange={(e) => setDeleteOtp(e.target.value)}
+                  maxLength={6}
+                  className="w-full bg-void/40 border border-gold/20 rounded px-3 py-2 text-center font-mono tracking-widest focus:border-gold outline-none text-gold"
+                  placeholder="******"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-cinzel text-ash tracking-widest uppercase">Master Key</label>
+                <input 
+                  value={deleteMaster}
+                  onChange={(e) => setDeleteMaster(e.target.value.toUpperCase())}
+                  maxLength={3}
+                  className="w-full bg-void/40 border border-gold/20 rounded px-3 py-2 text-center font-mono tracking-widest focus:border-gold outline-none text-gold"
+                  placeholder="***"
+                />
+              </div>
+            </div>
+            {!otpMutation.isPending && !otpSent && (
+              <button 
+                onClick={() => otpMutation.mutate()}
+                className="w-full py-2 bg-gold/5 border border-gold/20 text-[9px] font-cinzel tracking-widest text-gold uppercase hover:bg-gold/10 transition-colors"
+                type="button"
+              >
+                Send Action OTP
+              </button>
+            )}
+            {otpSent && <p className="text-[8px] text-chaingreen text-center uppercase tracking-widest">OTP Sent to Courier</p>}
+          </div>
+        )}
+      </Overlay>
     </div>
   )
 }

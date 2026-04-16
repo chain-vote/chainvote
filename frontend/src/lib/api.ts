@@ -72,7 +72,7 @@ export const api = {
       body: JSON.stringify(params),
     })
   },
-  async login(params: { email: string; password: string; role: 'VOTER' | 'ADMIN' }) {
+  async login(params: { email: string; password: string; role: 'VOTER' | 'COMMISSIONER' | 'ADMIN' }) {
     return jsonFetch<{ token: string; user: any }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(params),
@@ -96,7 +96,7 @@ export const api = {
       body: JSON.stringify(params),
     })
   },
-  async oauthLogin(params: { idToken: string; role: 'VOTER' | 'ADMIN' }) {
+  async oauthLogin(params: { idToken: string; role: 'VOTER' | 'COMMISSIONER' | 'ADMIN' }) {
     return jsonFetch<{ token: string; user: any }>('/api/auth/oauth', {
       method: 'POST',
       body: JSON.stringify(params),
@@ -248,5 +248,17 @@ export const api = {
   },
   async getAnalytics(electionId: string) {
     return jsonFetch<{ success: true; analytics: any }>(`/api/admin/elections/${electionId}/analytics`, { headers: authHeaders() })
+  },
+  async getDynamicCode() {
+    return jsonFetch<{ code: string }>('/api/admin/dynamic-code', { headers: authHeaders() })
+  },
+  async getPendingCommissioners() {
+    return jsonFetch<any[]>('/api/admin/commissioners/pending', { headers: authHeaders() })
+  },
+  async verifyCommissioner(id: string) {
+    return jsonFetch<{ success: true }> (`/api/admin/commissioners/verify/${id}`, {
+      method: 'POST',
+      headers: authHeaders(),
+    })
   },
 }

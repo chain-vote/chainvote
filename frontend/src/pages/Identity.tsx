@@ -10,7 +10,7 @@ export function Identity() {
 
   useEffect(() => {
     if (user && token) {
-      navigate(user.role === 'ADMIN' ? '/admin/dashboard' : '/voter/dashboard')
+      navigate(user.role === 'ADMIN' || user.role === 'COMMISSIONER' ? '/admin/dashboard' : '/voter/dashboard')
     }
   }, [user, token, navigate])
 
@@ -29,7 +29,7 @@ export function Identity() {
         <IdentityCard 
           title="Election Commissioner"
           description="Access the Command Center to architect live elections, configure candidates, and publish the chain."
-          link="/auth/admin"
+          link="/auth/commissioner"
           color="gold"
           delay={0.2}
         />

@@ -4,7 +4,8 @@ import { persist } from 'zustand/middleware'
 type User = {
   id: string
   email: string
-  role: 'VOTER' | 'ADMIN'
+  role: 'VOTER' | 'COMMISSIONER' | 'ADMIN'
+  isVerified: boolean
   voterHash: string | null
 }
 
@@ -21,7 +22,12 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       setAuth: (token, user) => set({ token, user }),
-      clear: () => set({ token: null, user: null }),
+      clear: () => {
+        set({ token: null, user: null })
+        localStorage.removeItem('chainvote:auth')
+        // Force full reload to ensure all memory state is purged
+        window.location.href = '/identity'
+      },
     }),
     { name: 'chainvote:auth' },
   ),

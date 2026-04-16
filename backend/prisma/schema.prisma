@@ -4,9 +4,7 @@ generator client {
 }
 
 datasource db {
-  // Prisma does not allow env() for provider; keep SQLite for local dev.
-  // For PostgreSQL production, switch this to "postgresql" and run migrations.
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -176,7 +174,8 @@ model User {
   id                String    @id @default(uuid())
   email             String    @unique
   passwordHash      String
-  role              String    @default("VOTER") // "VOTER" or "ADMIN"
+  role              String    @default("VOTER") // "VOTER", "COMMISSIONER", or "ADMIN"
+  isVerified        Boolean   @default(true) // Voters default to true, ECs to false (handled in authService)
   voterHash         String?   @unique
   actionOtpHash     String?
   actionOtpExpiry   DateTime?
@@ -187,6 +186,17 @@ model User {
   occupation        String?
   createdAt         DateTime  @default(now())
   createdElections  Election[]
+  dynamicCodes      DynamicCode[]
+}
+
+model DynamicCode {
+  id        String   @id @default(uuid())
+  code      String
+  userId    String
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model AuditLog {
