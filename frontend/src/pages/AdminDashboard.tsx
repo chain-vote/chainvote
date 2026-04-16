@@ -16,7 +16,7 @@ export function AdminDashboard() {
   const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const { isLandscape } = useOrientation()
-  
+
   const [overlay, setOverlay] = useState<{
     isOpen: boolean
     title: string
@@ -114,7 +114,7 @@ export function AdminDashboard() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: ({ id, otp, masterCode }: { id: string; otp: string; masterCode: string }) => 
+    mutationFn: ({ id, otp, masterCode }: { id: string; otp: string; masterCode: string }) =>
       api.deleteElection(id, { otp, masterCode }),
     onSuccess: (data) => {
       ritualChime('success')
@@ -144,7 +144,7 @@ export function AdminDashboard() {
     const candidatesStr = election.candidates?.map((c: any) => c.name).join(' vs ') || 'Candidates TBD'
     const link = `${window.location.origin}/vote?electionId=${election.id}`
     const message = `Cast your Will in ${election.title} where ${candidatesStr}. Participate in the ritual: ${link}`
-    
+
     navigator.clipboard.writeText(message)
     setOverlay({
       isOpen: true,
@@ -166,8 +166,8 @@ export function AdminDashboard() {
       electionId: id,
       onConfirm: () => {
         if (!deleteMaster || deleteOtp.length !== 6) {
-           ritualChime('fail')
-           return
+          ritualChime('fail')
+          return
         }
         deleteMutation.mutate({ id, otp: deleteOtp, masterCode: deleteMaster })
       }
@@ -177,7 +177,7 @@ export function AdminDashboard() {
   return (
     <div className={`min-h-screen pt-32 pb-20 px-6 max-w-7xl mx-auto transition-all duration-500`}>
       <BackButton fallback="/identity" />
-      
+
       <motion.div
         layout
         className={`flex ${isLandscape ? 'flex-row gap-12' : 'flex-col'}`}
@@ -209,8 +209,8 @@ export function AdminDashboard() {
           )}
 
           <div className="bg-void/50 border border-gold/30 p-6 rounded-lg hover:bg-gold/5 transition-all cursor-pointer group" onClick={() => window.location.href = '/admin/db-engine'}>
-             <h3 className="font-cinzel text-gold text-lg tracking-widest uppercase mb-2 group-hover:text-white transition-colors">Vault Query Engine (SQL)</h3>
-             <p className="text-ash text-[11px] uppercase tracking-tighter opacity-60">Directly interface with the SQLite cryptosystem.</p>
+            <h3 className="font-cinzel text-gold text-lg tracking-widest uppercase mb-2 group-hover:text-white transition-colors">Vault Query Engine (SQL)</h3>
+            <p className="text-ash text-[11px] uppercase tracking-tighter opacity-60">Directly interface with the SQLite cryptosystem.</p>
           </div>
 
           {/* Manifestation Heatmap */}
@@ -221,7 +221,7 @@ export function AdminDashboard() {
 
           {/* Super Admin Control: Commissioner Requests */}
           {isSuperAdmin && pendingCommissioners && pendingCommissioners.length > 0 && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="bg-gold/5 border border-gold/20 p-6 rounded-xl space-y-4"
@@ -246,7 +246,7 @@ export function AdminDashboard() {
               </div>
 
               {!showAddEC ? (
-                <button 
+                <button
                   onClick={() => setShowAddEC(true)}
                   className="w-full py-3 border border-dashed border-gold/30 text-[9px] font-cinzel tracking-[0.3em] uppercase text-ash hover:text-gold hover:bg-gold/5 transition-all"
                 >
@@ -254,27 +254,27 @@ export function AdminDashboard() {
                 </button>
               ) : (
                 <div className="space-y-4 pt-4 border-t border-white/5">
-                  <input 
-                    placeholder="Courier Email" 
+                  <input
+                    placeholder="Courier Email"
                     value={newEC.email}
                     onChange={(e) => setNewEC(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full bg-void border border-white/10 rounded px-3 py-2 text-xs focus:border-gold outline-none text-ash"
                   />
-                  <input 
-                    placeholder="Binding Password" 
+                  <input
+                    placeholder="Binding Password"
                     type="password"
                     value={newEC.password}
                     onChange={(e) => setNewEC(prev => ({ ...prev, password: e.target.value }))}
                     className="w-full bg-void border border-white/10 rounded px-3 py-2 text-xs focus:border-gold outline-none text-ash"
                   />
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={() => setShowAddEC(false)}
                       className="flex-1 py-2 text-[9px] font-cinzel tracking-widest uppercase text-ash hover:text-white"
                     >
                       Cancel
                     </button>
-                    <button 
+                    <button
                       onClick={() => addCommissionerMutation.mutate(newEC)}
                       disabled={addCommissionerMutation.isPending}
                       className="flex-1 py-2 bg-gold/20 border border-gold/40 text-[9px] font-cinzel tracking-widest uppercase text-gold hover:bg-gold hover:text-void"
@@ -292,7 +292,7 @@ export function AdminDashboard() {
         <div className={`${isLandscape ? 'w-3/5' : 'w-full mt-12'}`}>
           {isLoading ? (
             <div className="flex justify-center py-20">
-               <div className="w-10 h-10 border-2 border-gold/20 border-t-gold rounded-full animate-spin" />
+              <div className="w-10 h-10 border-2 border-gold/20 border-t-gold rounded-full animate-spin" />
             </div>
           ) : (
             <div className="space-y-6">
@@ -305,29 +305,29 @@ export function AdminDashboard() {
                   transition={{ delay: idx * 0.1 }}
                   className="group flex flex-col gap-6 bg-void/30 backdrop-blur-md border border-white/10 p-6 rounded-xl hover:border-gold/30 transition-all relative overflow-hidden"
                 >
-                    <div className="absolute top-0 right-0 px-3 py-1 bg-white/5 border-l border-b border-white/10 flex items-center gap-3">
-                      {election.creatorId === user?.id && (
-                         <span className="font-cinzel text-[7px] text-chaingreen tracking-widest uppercase opacity-70">
-                           Soul Creator
-                         </span>
-                      )}
-                      {election.isWhitelistedOnly ? (
-                        <span className="bg-ember/10 text-ember text-[7px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
-                          Whitelist Radius
-                        </span>
-                      ) : (
-                        <span className="bg-gold/10 text-gold text-[7px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
-                          Public Ballot
-                        </span>
-                      )}
+                  <div className="absolute top-0 right-0 px-3 py-1 bg-white/5 border-l border-b border-white/10 flex items-center gap-3">
+                    {election.creatorId === user?.id && (
+                      <span className="font-cinzel text-[7px] text-chaingreen tracking-widest uppercase opacity-70">
+                        Soul Creator
+                      </span>
+                    )}
+                    {election.isWhitelistedOnly ? (
+                      <span className="bg-ember/10 text-ember text-[7px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
+                        Whitelist Radius
+                      </span>
+                    ) : (
+                      <span className="bg-gold/10 text-gold text-[7px] px-2 py-0.5 rounded font-cinzel tracking-widest uppercase">
+                        Public Ballot
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <h3 className="font-cinzel text-lg text-white tracking-widest mb-1 group-hover:text-gold transition-colors">{election.title}</h3>
+                    <div className="font-mono text-[9px] text-ash/40 uppercase tracking-tighter break-all">
+                      ID: {election.id}
                     </div>
-                    
-                    <div className="pt-2">
-                      <h3 className="font-cinzel text-lg text-white tracking-widest mb-1 group-hover:text-gold transition-colors">{election.title}</h3>
-                      <div className="font-mono text-[9px] text-ash/40 uppercase tracking-tighter break-all">
-                        ID: {election.id}
-                      </div>
-                    </div>
+                  </div>
 
                   <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-white/5">
                     <Link
@@ -336,13 +336,13 @@ export function AdminDashboard() {
                     >
                       Audit
                     </Link>
-                     <Link
+                    <Link
                       to={`/results?electionId=${election.id}`}
                       className="font-cinzel text-[9px] tracking-[0.3em] uppercase text-ash hover:text-white transition-colors border-r border-white/10 pr-3"
                     >
                       Results
                     </Link>
-                     <Link
+                    <Link
                       to={`/admin/analytics?electionId=${election.id}`}
                       className="font-cinzel text-[9px] tracking-[0.3em] uppercase text-gold hover:text-gold/100 border-r border-white/10 pr-3"
                     >
@@ -368,7 +368,7 @@ export function AdminDashboard() {
         </div>
       </motion.div>
 
-      <Overlay 
+      <Overlay
         isOpen={overlay.isOpen}
         onClose={() => setOverlay(prev => ({ ...prev, isOpen: false }))}
         onConfirm={overlay.onConfirm}
@@ -383,7 +383,7 @@ export function AdminDashboard() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[9px] font-cinzel text-ash tracking-widest uppercase">Email OTP</label>
-                <input 
+                <input
                   value={deleteOtp}
                   onChange={(e) => setDeleteOtp(e.target.value)}
                   maxLength={6}
@@ -393,7 +393,7 @@ export function AdminDashboard() {
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-cinzel text-ash tracking-widest uppercase">Master Key</label>
-                <input 
+                <input
                   value={deleteMaster}
                   onChange={(e) => setDeleteMaster(e.target.value.toUpperCase())}
                   maxLength={3}
@@ -403,7 +403,7 @@ export function AdminDashboard() {
               </div>
             </div>
             {!otpMutation.isPending && !otpSent && (
-              <button 
+              <button
                 onClick={() => otpMutation.mutate()}
                 className="w-full py-2 bg-gold/5 border border-gold/20 text-[9px] font-cinzel tracking-widest text-gold uppercase hover:bg-gold/10 transition-colors"
                 type="button"
