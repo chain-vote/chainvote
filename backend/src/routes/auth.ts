@@ -11,7 +11,7 @@ router.post('/register', async (req, res) => {
       .object({
         email: z.string().email(),
         password: z.string().min(8),
-        role: z.enum(['VOTER', 'ADMIN']),
+        role: z.enum(['VOTER', 'COMMISSIONER', 'ADMIN']),
         age: z.number().int().optional(),
         location: z.string().optional(),
         occupation: z.string().optional(),
@@ -39,7 +39,7 @@ router.post('/login', async (req, res) => {
       .object({
         email: z.string().email(),
         password: z.string(),
-        role: z.enum(['VOTER', 'ADMIN']),
+        role: z.enum(['VOTER', 'COMMISSIONER', 'ADMIN']),
       })
       .parse(req.body)
 
@@ -116,7 +116,7 @@ router.post('/oauth', async (req, res) => {
     const { idToken, role, age, location, occupation } = z
       .object({ 
         idToken: z.string(), 
-        role: z.enum(['VOTER', 'ADMIN']),
+        role: z.enum(['VOTER', 'COMMISSIONER', 'ADMIN']),
         age: z.number().int().optional(),
         location: z.string().optional(),
         occupation: z.string().optional(),

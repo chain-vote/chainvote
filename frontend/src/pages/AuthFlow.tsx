@@ -42,7 +42,8 @@ export function AuthFlow() {
   })
 
   const isVoter = mode === 'voter'
-  const title = isVoter ? 'Citizen Voter' : 'Election Commissioner'
+  const isAdmin = mode === 'admin'
+  const title = isAdmin ? 'High Architect' : (isVoter ? 'Citizen Voter' : 'Election Commissioner')
 
   const authMutation = useMutation({
     mutationFn: (data: any) => data.isOAuth ? api.oauthLogin(data) : (isLogin ? api.login(data) : api.register({ ...data, role: mode?.toUpperCase() })),
@@ -420,12 +421,14 @@ export function AuthFlow() {
 
         {!isForgotMode && (
           <div className="mt-8 text-center flex flex-col items-center gap-6">
-            <button 
-              onClick={() => setIsLogin(!isLogin)}
-              className="font-cinzel text-[10px] tracking-widest text-ash hover:text-white transition-colors uppercase"
-            >
-              {isLogin ? "Don't have an identity? Register" : "Already registered? Login"}
-            </button>
+            {(!isForgotMode && mode !== 'admin') && (
+              <button 
+                onClick={() => setIsLogin(!isLogin)}
+                className="font-cinzel text-[10px] tracking-widest text-ash hover:text-white transition-colors uppercase"
+              >
+                {isLogin ? "Don't have an identity? Register" : "Already registered? Login"}
+              </button>
+            )}
 
             <Link
               to="/identity"

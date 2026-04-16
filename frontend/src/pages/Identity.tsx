@@ -25,7 +25,14 @@ export function Identity() {
         Choose Your Identity
       </motion.h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full">
+        <IdentityCard 
+          title="High Architect"
+          description="The Master of the Chain. Enter the Command Center specifically for the High Architect tanaytrivedi24@gmail.com."
+          link="/auth/admin"
+          color="crimson"
+          delay={0.1}
+        />
         <IdentityCard 
           title="Election Commissioner"
           description="Access the Command Center to architect live elections, configure candidates, and publish the chain."
@@ -38,7 +45,7 @@ export function Identity() {
           description="Enter the ritual of truth. Authenticate to claim your cryptographic ballot and cast your vote."
           link="/auth/voter"
           color="white"
-          delay={0.4}
+          delay={0.3}
         />
       </div>
 
@@ -48,7 +55,14 @@ export function Identity() {
 
 function IdentityCard({ title, description, link, color, delay }: any) {
   const isGold = color === 'gold'
+  const isCrimson = color === 'crimson'
   
+  const borderColor = isGold ? 'border-gold' : (isCrimson ? 'border-ember' : 'border-white')
+  const bgColor = isGold ? 'bg-gold/5' : (isCrimson ? 'bg-ember/5' : 'bg-white/5')
+  const hoverBorder = isGold ? 'hover:border-gold/60' : (isCrimson ? 'hover:border-ember/60' : 'hover:border-white/40')
+  const shadow = isGold ? 'hover:shadow-[0_0_40px_rgba(255,179,0,0.1)]' : (isCrimson ? 'hover:shadow-[0_0_40px_rgba(255,100,100,0.1)]' : 'hover:shadow-[0_0_40px_rgba(255,255,255,0.05)]')
+  const textColor = isGold ? 'text-gold' : (isCrimson ? 'text-ember' : 'text-white')
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -57,13 +71,9 @@ function IdentityCard({ title, description, link, color, delay }: any) {
     >
       <Link
         to={link}
-        className={`group relative flex flex-col items-center justify-center p-12 h-full text-center border transition-all duration-500 rounded-lg overflow-hidden ${
-          isGold 
-            ? 'border-gold/20 bg-gold/5 hover:border-gold/60 hover:shadow-[0_0_40px_rgba(255,179,0,0.1)]' 
-            : 'border-white/10 bg-white/5 hover:border-white/40 hover:shadow-[0_0_40px_rgba(255,255,255,0.05)]'
-        }`}
+        className={`group relative flex flex-col items-center justify-center p-12 h-full text-center border transition-all duration-500 rounded-lg overflow-hidden ${borderColor}/20 ${bgColor} ${hoverBorder} ${shadow}`}
       >
-        <div className={`font-cinzel text-xl tracking-widest uppercase mb-4 transition-colors ${isGold ? 'text-gold' : 'text-white'}`}>
+        <div className={`font-cinzel text-xl tracking-widest uppercase mb-4 transition-colors ${textColor}`}>
           {title}
         </div>
         <p className="text-ash text-sm font-sans leading-relaxed tracking-wide opacity-60 group-hover:opacity-100 transition-opacity">
@@ -71,8 +81,8 @@ function IdentityCard({ title, description, link, color, delay }: any) {
         </p>
 
         {/* Decorative corner accents */}
-        <div className={`absolute top-0 left-0 w-8 h-8 border-t border-l transition-opacity opacity-20 group-hover:opacity-100 ${isGold ? 'border-gold' : 'border-white'}`} />
-        <div className={`absolute bottom-0 right-0 w-8 h-8 border-b border-r transition-opacity opacity-20 group-hover:opacity-100 ${isGold ? 'border-gold' : 'border-white'}`} />
+        <div className={`absolute top-0 left-0 w-8 h-8 border-t border-l transition-opacity opacity-20 group-hover:opacity-100 ${borderColor}`} />
+        <div className={`absolute bottom-0 right-0 w-8 h-8 border-b border-r transition-opacity opacity-20 group-hover:opacity-100 ${borderColor}`} />
       </Link>
     </motion.div>
   )
