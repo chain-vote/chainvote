@@ -261,4 +261,11 @@ export const api = {
       headers: authHeaders(),
     })
   },
+  async addCommissioner(params: { email: string; password: string }) {
+    return jsonFetch<{ success: true; user: any }>('/api/admin/commissioners/add', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(params),
+    })
+  },
 }
