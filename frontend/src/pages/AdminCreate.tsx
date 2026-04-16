@@ -90,6 +90,7 @@ export function AdminCreate() {
     mutationFn: (data: any) => api.createElection(data),
     onSuccess: () => navigate('/admin/dashboard'),
     onError: (err: any) => {
+      ritualChime('fail')
       setOverlay({
         isOpen: true,
         title: 'Publication Failed',

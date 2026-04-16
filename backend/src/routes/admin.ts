@@ -31,10 +31,16 @@ router.post('/elections/create', requireAdmin, async (req, res) => {
       auditVisibility: z.enum(['OPEN', 'SEALED']).optional().default('OPEN'),
     }).parse(req.body)
 
-    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, body.masterCode)
     const isOtpValid = await authService.verifyActionOTP(req.user!.id, body.otp)
-    if (!isMasterValid || !isOtpValid) {
-      return res.status(401).json({ error: 'Ritual Verification Failed: The provided codes do not match the expected security patterns or have expired.' })
+    if (!isOtpValid) {
+      console.warn(`[Admin:Create] OTP Validation Failed for user ${req.user!.id}`)
+      return res.status(401).json({ error: 'Email OTP is invalid or has expired. Please verify the code from your manifest.' })
+    }
+
+    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, body.masterCode)
+    if (!isMasterValid) {
+      console.warn(`[Admin:Create] Master Code Validation Failed for user ${req.user!.id}`)
+      return res.status(401).json({ error: 'Master Code is invalid, already used, or has expired. Please use the current ephemeral key.' })
     }
 
     const calculatedEndTime = body.endTime 
@@ -80,12 +86,11 @@ router.post('/elections/:id/publish', requireAdmin, async (req, res) => {
     const id = z.string().uuid().parse(req.params.id)
     const { otp, masterCode } = z.object({ otp: z.string().length(6), masterCode: z.string() }).parse(req.body)
 
-    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, masterCode)
     const isOtpValid = await authService.verifyActionOTP(req.user!.id, otp)
+    if (!isOtpValid) return res.status(401).json({ error: 'Email OTP Verification Failed.' })
 
-    if (!isMasterValid || !isOtpValid) {
-      return res.status(401).json({ error: 'Ritual Verification Failed.' })
-    }
+    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, masterCode)
+    if (!isMasterValid) return res.status(401).json({ error: 'Master Code Verification Failed.' })
 
     const election = await prisma.election.findUnique({ where: { id } })
     if (!election) return res.status(404).json({ error: 'Election not found.' })
@@ -110,12 +115,11 @@ router.post('/elections/:id/recall', requireAdmin, async (req, res) => {
       reason: z.string().optional(),
     }).parse(req.body)
 
-    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, masterCode)
     const isOtpValid = await authService.verifyActionOTP(req.user!.id, otp)
+    if (!isOtpValid) return res.status(401).json({ error: 'Email OTP Verification Failed.' })
 
-    if (!isMasterValid || !isOtpValid) {
-      return res.status(401).json({ error: 'Ritual Verification Failed.' })
-    }
+    const isMasterValid = await dynamicCodeService.verifyAndConsume(req.user!.id, masterCode)
+    if (!isMasterValid) return res.status(401).json({ error: 'Master Code Verification Failed.' })
 
     await prisma.election.update({ where: { id }, data: { status: 'RECALLED' } })
     await prisma.electionRecall.create({ data: { electionId: id, reason } })
